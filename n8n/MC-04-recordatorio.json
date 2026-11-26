@@ -1,0 +1,248 @@
+{
+  "name": "MC-04 · Recordatorio",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## MC-04 · Recordatorio\n\nDos entradas en el mismo flujo, que comparten memoria:\n  · el webhook guarda (o quita) el recordatorio de una cita;\n  · el disparador de cada minuto revisa cuáles ya toca enviar.\nMarca el envío ANTES de mandar el correo, así nunca se repite; y descarta\nlas citas canceladas. IMPORTANTE: este flujo tiene que quedar ACTIVO en n8n.",
+        "height": 260,
+        "width": 520,
+        "color": 4
+      },
+      "id": "mc-nota-39",
+      "name": "Nota",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -240,
+        -420
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "mediconnect/recordatorio",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*",
+          "rawBody": false
+        }
+      },
+      "id": "mc-recibe-el-recordatorio-31",
+      "name": "Recibe el recordatorio",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -220,
+        160
+      ],
+      "webhookId": "mc-wh-mediconnect-recordatorio-30"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "\n/* ---------- MC-04a · guardar o quitar un recordatorio ---------- */\nconst _entrada = $input.first().json || {};\nconst e = _entrada.body && typeof _entrada.body === 'object' ? _entrada.body : _entrada;   // el Webhook de n8n entrega el JSON dentro de .body\nconst guardado = $getWorkflowStaticData('global');\nguardado.pendientes = guardado.pendientes || {};\n\nconst c = e.cita || {};\nif (!c.codigo){\n  return [{ json: { respuesta: { ok: false, error: 'Falta el código de la cita' } } }];\n}\n\n// Cancelar un recordatorio pendiente\nif (e.accion === 'cancelar' || c.estado === 'cancelada'){\n  const habia = !!guardado.pendientes[c.codigo];\n  delete guardado.pendientes[c.codigo];\n  return [{ json: { respuesta: { ok: true, mensaje: habia ? 'Recordatorio descartado' : 'No había recordatorio pendiente' } } }];\n}\n\nconst minutos = Number(e.enMinutos);\nif (!Number.isFinite(minutos) || minutos < 0 || minutos > 60 * 24 * 60){\n  return [{ json: { respuesta: { ok: false, error: 'enMinutos fuera de rango' } } }];\n}\n\n// Un solo recordatorio por cita: si ya había, se reemplaza (reprogramación)\nguardado.pendientes[c.codigo] = {\n  cuando: Date.now() + minutos * 60000,\n  enviado: false,\n  para: (e.paciente && e.paciente.correo) || null,\n  nombre: (e.paciente && e.paciente.nombre) || '',\n  cita: c,\n  zona: e.zona || null,\n  app: e.app || null\n};\n\nreturn [{ json: { respuesta: {\n  ok: true,\n  mensaje: 'Recordatorio programado',\n  codigo: c.codigo,\n  enMinutos: minutos,\n  pendientes: Object.keys(guardado.pendientes).length\n} } }];\n"
+      },
+      "id": "mc-programar-o-descartar-32",
+      "name": "Programar o descartar",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        20,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json.respuesta || $json) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      },
+      "id": "mc-responder-a-la-app-33",
+      "name": "Responder a la app",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        260,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 1
+            }
+          ]
+        }
+      },
+      "id": "mc-cada-minuto-34",
+      "name": "Cada minuto",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -220,
+        -140
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "\n/* ---------- utilidades compartidas ---------- */\nconst escapar = (t) => String(t == null ? '' : t)\n  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\"/g, '&quot;');\n\nconst esCorreo = (c) => typeof c === 'string' && /^[^@\\s]+@[^@\\s]+\\.[^@\\s]{2,}$/.test(c);\n\n/** Evita mandar dos veces el mismo aviso (doble clic, reintento de red). */\nfunction yaProcesado(idEvento, horas = 24){\n  if (!idEvento) return false;\n  const guardado = $getWorkflowStaticData('global');\n  guardado.vistos = guardado.vistos || {};\n  const limite = Date.now() - horas * 3600000;\n  for (const k of Object.keys(guardado.vistos)) if (guardado.vistos[k] < limite) delete guardado.vistos[k];\n  if (guardado.vistos[idEvento]) return true;\n  guardado.vistos[idEvento] = Date.now();\n  return false;\n}\n\n/** Plantilla del correo: misma identidad visual que la app. */\nfunction correoHtml({ titulo, saludo, intro, filas, aviso, boton, pie }){\n  const fila = (etiqueta, valor) =>\n    '<tr><td style=\"padding:6px 0;color:#5B6069;font-size:14px;width:120px;vertical-align:top\">' + escapar(etiqueta) + '</td>' +\n    '<td style=\"padding:6px 0;color:#111214;font-size:15px;font-weight:500\">' + escapar(valor) + '</td></tr>';\n\n  return '<!doctype html><html lang=\"es\"><head><meta charset=\"utf-8\">' +\n    '<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"></head>' +\n    '<body style=\"margin:0;padding:0;background:#EEF0F4;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif\">' +\n    '<table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" style=\"background:#EEF0F4;padding:24px 12px\">' +\n    '<tr><td align=\"center\">' +\n    '<table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" style=\"max-width:520px;background:#FFFFFF;border-radius:24px;overflow:hidden\">' +\n\n    '<tr><td style=\"background:#3B5BF6;padding:24px 28px\">' +\n    '<div style=\"color:#FFFFFF;font-size:13px;font-weight:600;letter-spacing:.3px;opacity:.85\">MEDICONNECT</div>' +\n    '<div style=\"color:#FFFFFF;font-size:24px;line-height:30px;font-weight:400;padding-top:6px\">' + escapar(titulo) + '</div>' +\n    '</td></tr>' +\n\n    '<tr><td style=\"padding:24px 28px 8px;color:#111214;font-size:16px;font-weight:500\">' + escapar(saludo) + '</td></tr>' +\n    '<tr><td style=\"padding:0 28px 16px;color:#5B6069;font-size:15px;line-height:22px\">' + escapar(intro) + '</td></tr>' +\n\n    (filas && filas.length\n      ? '<tr><td style=\"padding:0 28px 8px\"><table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" ' +\n        'style=\"background:#F2F3F5;border-radius:18px;padding:16px 18px\">' +\n        filas.map(f => fila(f[0], f[1])).join('') + '</table></td></tr>'\n      : '') +\n\n    (boton\n      ? '<tr><td style=\"padding:18px 28px 8px\"><a href=\"' + escapar(boton.url) + '\" ' +\n        'style=\"display:inline-block;background:#3B5BF6;color:#FFFFFF;text-decoration:none;' +\n        'padding:14px 22px;border-radius:14px;font-size:15px;font-weight:500\">' + escapar(boton.texto) + '</a></td></tr>'\n      : '') +\n\n    (aviso\n      ? '<tr><td style=\"padding:12px 28px 0\"><div style=\"background:#FCF0DA;border-radius:14px;padding:14px 16px;' +\n        'color:#7A4A00;font-size:13px;line-height:19px\">' + escapar(aviso) + '</div></td></tr>'\n      : '') +\n\n    '<tr><td style=\"padding:20px 28px 28px;color:#7A7F88;font-size:12px;line-height:18px;border-top:1px solid #EDEFF2\">' +\n    escapar(pie || '') + '</td></tr>' +\n\n    '</table>' +\n    '<div style=\"max-width:520px;color:#8A8F98;font-size:11px;line-height:17px;padding:14px 8px;text-align:center\">' +\n    'MediConnect es un prototipo académico de estudiantes. La clínica, los médicos y los pagos son ficticios.' +\n    '</div>' +\n    '</td></tr></table></body></html>';\n}\n\n/* ---------- MC-04b · ¿a quién le toca el recordatorio? ---------- */\nconst guardado = $getWorkflowStaticData('global');\nguardado.pendientes = guardado.pendientes || {};\nconst ahora = Date.now();\nconst salida = [];\n\nfor (const [codigo, p] of Object.entries(guardado.pendientes)){\n  // Limpieza: lo que quedó viejo se descarta\n  if (p.cuando < ahora - 6 * 3600000){ delete guardado.pendientes[codigo]; continue; }\n  if (p.enviado) continue;\n  if (p.cuando > ahora) continue;\n  if (!esCorreo(p.para)) { delete guardado.pendientes[codigo]; continue; }\n  if (p.cita && p.cita.estado === 'cancelada'){ delete guardado.pendientes[codigo]; continue; }\n\n  // Se marca ANTES de enviar: si algo falla, no se reenvía en bucle\n  p.enviado = true;\n\n  const c = p.cita || {};\n  const nombre = (p.nombre || 'Hola').split(' ')[0];\n  const enlaces = c.enlaces || {};\n\n  salida.push({ json: {\n    enviar: true,\n    evento: 'recordatorio',\n    idEvento: 'rec-' + codigo,\n    codigo,\n    para: p.para,\n    asunto: 'Recordatorio: tu cita es ' + (c.fechaTexto || c.fecha) + ' a las ' + (c.horaTexto || c.hora),\n    html: correoHtml({\n      titulo: 'Tu cita es pronto',\n      saludo: 'Hola, ' + nombre,\n      intro: 'Te recordamos tu cita con ' + ((c.medico && c.medico.nombre) || 'tu médico') +\n             '. Llegá 10 minutos antes y hacé el check-in con el QR de tu comprobante.',\n      filas: [\n        ['Fecha', c.fechaTexto || c.fecha],\n        ['Hora', (c.horaTexto || c.hora) + ' (' + ((p.zona && p.zona.id) || 'America/El_Salvador') + ')'],\n        ['Médico', (c.medico && c.medico.nombre) || ''],\n        ['Lugar', ((c.lugar && c.lugar.clinica) || '') + ((c.medico && c.medico.consultorio) ? ' · ' + c.medico.consultorio : '')],\n        ['Código', codigo]\n      ].filter(f => f[1]),\n      boton: enlaces.comprobante ? { texto: 'Abrir mi comprobante', url: enlaces.comprobante } : null,\n      aviso: '¿No vas a poder llegar? Cancelá desde la app para liberar el horario.',\n      pie: 'Recordatorio automático de MediConnect.'\n    })\n  } });\n}\n\nreturn salida;\n"
+      },
+      "id": "mc--a-qui-n-le-toca--35",
+      "name": "¿A quién le toca?",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        20,
+        -140
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.para }}",
+        "subject": "={{ $json.asunto }}",
+        "emailType": "html",
+        "message": "={{ $json.html }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "id": "mc-enviar-recordatorio-gmail--36",
+      "name": "Enviar recordatorio (Gmail)",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        260,
+        -140
+      ],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "",
+          "name": "Gmail personal MediConnect"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true,
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "\n/* ---------- registrar el resultado del envío ---------- */\n// Lo que sale de Gmail es su propia respuesta; los datos del aviso vienen del nodo anterior a Gmail.\nlet previo = {};\nfor (const nombre of ['Validar y preparar', '¿A quién le toca?']){\n  try { previo = $(nombre).first().json || {}; break; } catch (_) { /* ese nodo no existe en este flujo */ }\n}\nconst gmail = $input.first().json || {};\nconst e = Object.assign({}, previo, (gmail.evento || gmail.para || gmail.error) ? gmail : {});\nconst falló = !!e.error;\nconst guardado = $getWorkflowStaticData('global');\nguardado.bitacora = guardado.bitacora || [];\nguardado.bitacora.push({\n  cuando: new Date().toISOString(),\n  evento: e.evento || null,\n  idEvento: e.idEvento || null,\n  para: e.para || null,\n  resultado: falló ? 'error' : 'enviado',\n  detalle: falló ? String(e.error.message || e.error) : null\n});\nif (guardado.bitacora.length > 200) guardado.bitacora.splice(0, guardado.bitacora.length - 200);\n\nreturn [{ json: {\n  ...e,\n  respuesta: falló\n    ? { ok: false, error: 'No se pudo enviar el correo', detalle: String(e.error.message || e.error) }\n    : { ok: true, mensaje: 'Correo enviado' }\n} }];\n"
+      },
+      "id": "mc-registrar-resultado-37",
+      "name": "Registrar resultado",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        500,
+        -140
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "mc-listo-38",
+      "name": "Listo",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        740,
+        -140
+      ]
+    }
+  ],
+  "connections": {
+    "Recibe el recordatorio": {
+      "main": [
+        [
+          {
+            "node": "Programar o descartar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Programar o descartar": {
+      "main": [
+        [
+          {
+            "node": "Responder a la app",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cada minuto": {
+      "main": [
+        [
+          {
+            "node": "¿A quién le toca?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿A quién le toca?": {
+      "main": [
+        [
+          {
+            "node": "Enviar recordatorio (Gmail)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar recordatorio (Gmail)": {
+      "main": [
+        [
+          {
+            "node": "Registrar resultado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Registrar resultado": {
+      "main": [
+        [
+          {
+            "node": "Listo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "timezone": "America/El_Salvador"
+  },
+  "pinData": {},
+  "tags": [],
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "versionId": ""
+}

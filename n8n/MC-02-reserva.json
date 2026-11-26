@@ -1,0 +1,250 @@
+{
+  "name": "MC-02 · Reserva (confirmación + .ics)",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## MC-02 · Reserva (confirmación + .ics)\n\nRecibe una cita YA guardada por la app, valida sus datos y envía la confirmación\npor Gmail con profesional, fecha, hora, lugar, enlace al comprobante y el archivo .ics adjunto.\nDescarta eventos repetidos por la clave idEvento.",
+        "height": 260,
+        "width": 520,
+        "color": 4
+      },
+      "id": "mc-nota-18",
+      "name": "Nota",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -240,
+        -420
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "mediconnect/reserva",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*",
+          "rawBody": false
+        }
+      },
+      "id": "mc-recibe-la-reserva-11",
+      "name": "Recibe la reserva",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -200,
+        0
+      ],
+      "webhookId": "mc-wh-mediconnect-reserva-10"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "\n/* ---------- utilidades compartidas ---------- */\nconst escapar = (t) => String(t == null ? '' : t)\n  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\"/g, '&quot;');\n\nconst esCorreo = (c) => typeof c === 'string' && /^[^@\\s]+@[^@\\s]+\\.[^@\\s]{2,}$/.test(c);\n\n/** Evita mandar dos veces el mismo aviso (doble clic, reintento de red). */\nfunction yaProcesado(idEvento, horas = 24){\n  if (!idEvento) return false;\n  const guardado = $getWorkflowStaticData('global');\n  guardado.vistos = guardado.vistos || {};\n  const limite = Date.now() - horas * 3600000;\n  for (const k of Object.keys(guardado.vistos)) if (guardado.vistos[k] < limite) delete guardado.vistos[k];\n  if (guardado.vistos[idEvento]) return true;\n  guardado.vistos[idEvento] = Date.now();\n  return false;\n}\n\n/** Plantilla del correo: misma identidad visual que la app. */\nfunction correoHtml({ titulo, saludo, intro, filas, aviso, boton, pie }){\n  const fila = (etiqueta, valor) =>\n    '<tr><td style=\"padding:6px 0;color:#5B6069;font-size:14px;width:120px;vertical-align:top\">' + escapar(etiqueta) + '</td>' +\n    '<td style=\"padding:6px 0;color:#111214;font-size:15px;font-weight:500\">' + escapar(valor) + '</td></tr>';\n\n  return '<!doctype html><html lang=\"es\"><head><meta charset=\"utf-8\">' +\n    '<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"></head>' +\n    '<body style=\"margin:0;padding:0;background:#EEF0F4;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif\">' +\n    '<table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" style=\"background:#EEF0F4;padding:24px 12px\">' +\n    '<tr><td align=\"center\">' +\n    '<table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" style=\"max-width:520px;background:#FFFFFF;border-radius:24px;overflow:hidden\">' +\n\n    '<tr><td style=\"background:#3B5BF6;padding:24px 28px\">' +\n    '<div style=\"color:#FFFFFF;font-size:13px;font-weight:600;letter-spacing:.3px;opacity:.85\">MEDICONNECT</div>' +\n    '<div style=\"color:#FFFFFF;font-size:24px;line-height:30px;font-weight:400;padding-top:6px\">' + escapar(titulo) + '</div>' +\n    '</td></tr>' +\n\n    '<tr><td style=\"padding:24px 28px 8px;color:#111214;font-size:16px;font-weight:500\">' + escapar(saludo) + '</td></tr>' +\n    '<tr><td style=\"padding:0 28px 16px;color:#5B6069;font-size:15px;line-height:22px\">' + escapar(intro) + '</td></tr>' +\n\n    (filas && filas.length\n      ? '<tr><td style=\"padding:0 28px 8px\"><table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" ' +\n        'style=\"background:#F2F3F5;border-radius:18px;padding:16px 18px\">' +\n        filas.map(f => fila(f[0], f[1])).join('') + '</table></td></tr>'\n      : '') +\n\n    (boton\n      ? '<tr><td style=\"padding:18px 28px 8px\"><a href=\"' + escapar(boton.url) + '\" ' +\n        'style=\"display:inline-block;background:#3B5BF6;color:#FFFFFF;text-decoration:none;' +\n        'padding:14px 22px;border-radius:14px;font-size:15px;font-weight:500\">' + escapar(boton.texto) + '</a></td></tr>'\n      : '') +\n\n    (aviso\n      ? '<tr><td style=\"padding:12px 28px 0\"><div style=\"background:#FCF0DA;border-radius:14px;padding:14px 16px;' +\n        'color:#7A4A00;font-size:13px;line-height:19px\">' + escapar(aviso) + '</div></td></tr>'\n      : '') +\n\n    '<tr><td style=\"padding:20px 28px 28px;color:#7A7F88;font-size:12px;line-height:18px;border-top:1px solid #EDEFF2\">' +\n    escapar(pie || '') + '</td></tr>' +\n\n    '</table>' +\n    '<div style=\"max-width:520px;color:#8A8F98;font-size:11px;line-height:17px;padding:14px 8px;text-align:center\">' +\n    'MediConnect es un prototipo académico de estudiantes. La clínica, los médicos y los pagos son ficticios.' +\n    '</div>' +\n    '</td></tr></table></body></html>';\n}\n\n/* ---------- MC-02 · validar la reserva y armar la confirmación ---------- */\nconst _entrada = $input.first().json || {};\nconst e = _entrada.body && typeof _entrada.body === 'object' ? _entrada.body : _entrada;   // el Webhook de n8n entrega el JSON dentro de .body\nconst salida = { ok: false, enviar: false, evento: e.evento || 'desconocido', idEvento: e.idEvento || null };\n\nconst errores = [];\nif (e.evento !== 'reserva') errores.push('evento inesperado: ' + e.evento);\nif (!esCorreo(e.paciente && e.paciente.correo)) errores.push('correo inválido o ausente');\nconst c = e.cita || {};\nif (!c.codigo) errores.push('falta el código de la cita');\nif (!c.fecha || !c.hora) errores.push('falta la fecha o la hora');\nif (!c.medico || !c.medico.nombre) errores.push('falta el médico');\nif (c.estado && c.estado !== 'agendada') errores.push('la cita no está agendada: ' + c.estado);\n\nif (errores.length){\n  return [{ json: { ...salida, motivo: 'inválido', errores,\n    respuesta: { ok: false, error: 'Evento inválido', detalle: errores } } }];\n}\n\nif (yaProcesado(e.idEvento)){\n  return [{ json: { ...salida, ok: true, motivo: 'duplicado',\n    respuesta: { ok: true, duplicado: true, mensaje: 'Esa confirmación ya se había enviado' } } }];\n}\n\nconst nombre = (e.paciente.nombre || 'Hola').split(' ')[0];\nconst lugar = (c.lugar && c.lugar.clinica) || 'Centro Médico MediConnect';\nconst direccion = (c.lugar && c.lugar.direccion) || '';\nconst enlaces = c.enlaces || {};\n\nconst html = correoHtml({\n  titulo: c.esControl ? 'Tu control está agendado' : 'Tu cita está confirmada',\n  saludo: '¡Listo, ' + nombre + '!',\n  intro: 'Guardamos tu ' + (c.esControl ? 'control' : 'cita') + ' con ' + c.medico.nombre +\n         '. Te adjuntamos el archivo para tu calendario y abajo está tu comprobante con el código de llegada.',\n  filas: [\n    ['Médico', c.medico.nombre + ' · ' + (c.medico.especialidad || '')],\n    ['Fecha', c.fechaTexto || c.fecha],\n    ['Hora', (c.horaTexto || c.hora) + ' (' + ((e.zona && e.zona.id) || 'America/El_Salvador') + ')'],\n    ['Lugar', lugar + (c.medico.consultorio ? ' · ' + c.medico.consultorio : '')],\n    ['Dirección', direccion],\n    ['Código', c.codigo]\n  ].filter(f => f[1]),\n  boton: enlaces.comprobante ? { texto: 'Ver mi comprobante y QR', url: enlaces.comprobante } : null,\n  aviso: 'Llegá 10 minutos antes y hacé el check-in con el QR. Podés cambiar o cancelar hasta 4 horas antes.',\n  pie: 'Si querés agregarla a Google Calendar: ' + (enlaces.calendarioGoogle || '')\n});\n\nconst resultado = {\n  ...salida,\n  ok: true,\n  enviar: true,\n  para: e.paciente.correo,\n  asunto: (c.esControl ? 'Control agendado' : 'Cita confirmada') + ': ' +\n          (c.fechaTexto || c.fecha) + ', ' + (c.horaTexto || c.hora) + ' · ' + c.medico.nombre,\n  html,\n  codigo: c.codigo,\n  respuesta: { ok: true, mensaje: 'Confirmación enviada', codigo: c.codigo }\n};\n\n// El archivo .ics viene como texto desde la app; aquí se vuelve adjunto\nif (typeof e.ics === 'string' && e.ics.length > 40){\n  return [{\n    json: resultado,\n    binary: {\n      ics: {\n        data: Buffer.from(e.ics, 'utf8').toString('base64'),\n        mimeType: 'text/calendar',\n        fileName: e.icsNombre || ('mediconnect-' + c.codigo + '.ics'),\n        fileExtension: 'ics'\n      }\n    }\n  }];\n}\nreturn [{ json: resultado }];\n"
+      },
+      "id": "mc-validar-y-preparar-12",
+      "name": "Validar y preparar",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        40,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.enviar }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "mc--hay-que-enviar--13",
+      "name": "¿Hay que enviar?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        280,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.para }}",
+        "subject": "={{ $json.asunto }}",
+        "emailType": "html",
+        "message": "={{ $json.html }}",
+        "options": {
+          "appendAttribution": false,
+          "attachmentsUi": {
+            "attachmentsBinary": [
+              {
+                "property": "ics"
+              }
+            ]
+          }
+        }
+      },
+      "id": "mc-enviar-confirmaci-n-gmail--14",
+      "name": "Enviar confirmación (Gmail)",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        520,
+        -100
+      ],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "",
+          "name": "Gmail personal MediConnect"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true,
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "\n/* ---------- registrar el resultado del envío ---------- */\n// Lo que sale de Gmail es su propia respuesta; los datos del aviso vienen del nodo anterior a Gmail.\nlet previo = {};\nfor (const nombre of ['Validar y preparar', '¿A quién le toca?']){\n  try { previo = $(nombre).first().json || {}; break; } catch (_) { /* ese nodo no existe en este flujo */ }\n}\nconst gmail = $input.first().json || {};\nconst e = Object.assign({}, previo, (gmail.evento || gmail.para || gmail.error) ? gmail : {});\nconst falló = !!e.error;\nconst guardado = $getWorkflowStaticData('global');\nguardado.bitacora = guardado.bitacora || [];\nguardado.bitacora.push({\n  cuando: new Date().toISOString(),\n  evento: e.evento || null,\n  idEvento: e.idEvento || null,\n  para: e.para || null,\n  resultado: falló ? 'error' : 'enviado',\n  detalle: falló ? String(e.error.message || e.error) : null\n});\nif (guardado.bitacora.length > 200) guardado.bitacora.splice(0, guardado.bitacora.length - 200);\n\nreturn [{ json: {\n  ...e,\n  respuesta: falló\n    ? { ok: false, error: 'No se pudo enviar el correo', detalle: String(e.error.message || e.error) }\n    : { ok: true, mensaje: 'Correo enviado' }\n} }];\n"
+      },
+      "id": "mc-registrar-resultado-15",
+      "name": "Registrar resultado",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        760,
+        -100
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json.respuesta || $json) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      },
+      "id": "mc-responder-a-la-app-16",
+      "name": "Responder a la app",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1000,
+        -100
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json.respuesta || $json) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      },
+      "id": "mc-responder-sin-enviar-17",
+      "name": "Responder sin enviar",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        520,
+        120
+      ]
+    }
+  ],
+  "connections": {
+    "Recibe la reserva": {
+      "main": [
+        [
+          {
+            "node": "Validar y preparar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validar y preparar": {
+      "main": [
+        [
+          {
+            "node": "¿Hay que enviar?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Hay que enviar?": {
+      "main": [
+        [
+          {
+            "node": "Enviar confirmación (Gmail)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder sin enviar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enviar confirmación (Gmail)": {
+      "main": [
+        [
+          {
+            "node": "Registrar resultado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Registrar resultado": {
+      "main": [
+        [
+          {
+            "node": "Responder a la app",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "timezone": "America/El_Salvador"
+  },
+  "pinData": {},
+  "tags": [],
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "versionId": ""
+}
