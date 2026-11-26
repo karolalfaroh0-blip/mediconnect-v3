@@ -1,0 +1,71 @@
+/* ============================================================
+   MediConnect · presentador.css
+   El panel del presentador vive FUERA de la app del paciente.
+   Aqui se eligen los casos academicos y se simulan las decisiones
+   que en la vida real tomarian el medico, el banco o la aseguradora.
+   ============================================================ */
+
+.panel{
+  position:relative;flex:none;width:368px;max-height:calc(100vh - 48px);overflow:auto;
+  background:rgba(255,255,255,.88);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);
+  border-radius:24px;
+  box-shadow:0 24px 60px -30px rgba(15,16,19,.35),inset 0 0 0 1px rgba(17,18,20,.06);
+  padding:18px;display:flex;flex-direction:column;gap:16px;font-size:13px;scrollbar-width:thin;
+}
+.panel h2{font-size:15px;font-weight:600;letter-spacing:-.2px;margin:0}
+.panel h3{font-size:11px;font-weight:600;letter-spacing:.6px;text-transform:uppercase;color:var(--ink2);margin:0 0 8px}
+.panel .tagsim{display:inline-flex;align-items:center;height:20px;padding:0 8px;border-radius:999px;
+  background:#FCF0DA;color:#7A4A00;font-size:11px;font-weight:600}
+.panel .prog{height:6px;border-radius:3px;background:#E2E5EA;overflow:hidden}
+.panel .prog i{display:block;height:100%;background:var(--brand);border-radius:3px;transition:width .3s}
+
+.case{display:flex;align-items:center;gap:10px;width:100%;padding:9px 10px;border-radius:14px;text-align:left;transition:background var(--t-rapida)}
+.case:hover{background:#F2F3F5}
+.case.now{background:var(--brand-soft)}
+.case b{flex:none;width:34px;height:24px;border-radius:8px;background:#EEF0F3;display:grid;place-items:center;
+  font-size:10.5px;font-weight:700;color:#3A3E46}
+.case.done b{background:var(--ok);color:#fff}
+.case .ctx{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
+.case .ctx span{color:var(--ink2);font-size:12px}
+
+.seg{display:flex;gap:4px;padding:3px;border-radius:12px;background:#EEF0F3}
+.seg button{flex:1;height:30px;border-radius:9px;font-size:12px;font-weight:500;color:#3A3E46;text-align:center}
+.seg button.on{background:#fff;color:var(--ink);box-shadow:0 1px 3px rgba(15,16,19,.12)}
+
+.ctl{display:flex;flex-direction:column;gap:6px}
+.ctl>span{font-size:12px;color:#3A3E46}
+
+.pbtn{height:36px;border-radius:12px;padding:0 12px;background:#fff;box-shadow:inset 0 0 0 1px #E2E5EA;
+  font-size:12px;font-weight:500;text-align:center}
+.pbtn.primary{background:var(--ink);color:#fff;box-shadow:none}
+.pbtn.danger{color:var(--danger)}
+
+.log{font:11px/1.55 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:#0F1013;color:#C9D1E0;
+  border-radius:14px;padding:10px 12px;max-height:168px;overflow:auto;white-space:pre-wrap;word-break:break-word}
+.log em{color:#7FA0FF;font-style:normal}
+.log b{color:#8FE3B0;font-weight:600}
+.log i{color:#FFB38A;font-style:normal}
+
+.hoy{display:flex;align-items:center;gap:8px;font-size:12px;color:#3A3E46;flex-wrap:wrap}
+.hoy input{width:auto;background:#fff;border-radius:8px;padding:4px 6px;box-shadow:inset 0 0 0 1px #E2E5EA;font-size:12px}
+
+.pcampo{display:flex;flex-direction:column;gap:4px}
+.pcampo input{background:#fff;border-radius:10px;padding:8px 10px;box-shadow:inset 0 0 0 1px #E2E5EA;font-size:12px}
+.pcampo label{font-size:11px;color:var(--ink2);font-weight:600}
+.pnota{font-size:11.5px;line-height:1.5;color:var(--ink2);background:#F4F5F7;border-radius:10px;padding:8px 10px}
+.pestado{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;border-radius:999px;padding:4px 9px}
+.pestado.ok{background:var(--ok-soft);color:var(--ok)}
+.pestado.no{background:var(--danger-soft);color:var(--danger)}
+.pestado.gris{background:#EDEFF2;color:var(--ink2)}
+
+/* ---------- cajon en pantallas medianas ---------- */
+.pfab{position:fixed;right:20px;bottom:20px;z-index:90;height:44px;padding:0 16px;border-radius:22px;
+  background:var(--ink);color:#fff;font-size:13px;font-weight:600;display:none;align-items:center;gap:8px;
+  box-shadow:0 12px 30px -10px rgba(15,16,19,.5)}
+.pscrim{position:fixed;inset:0;background:rgba(15,16,19,.35);z-index:94;display:none}
+body.drawer .panel{background:#fff;position:fixed;right:12px;top:12px;bottom:12px;max-height:none;z-index:95;display:flex;animation:sube .25s ease}
+body.drawer.open .pscrim{display:block}
+body.drawer:not(.open) .panel{display:none}
+body.drawer .pfab{display:inline-flex}
+body.nopanel .panel,
+body.nopanel .pfab{display:none!important}
