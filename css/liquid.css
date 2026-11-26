@@ -1,0 +1,289 @@
+/* ============================================================
+   MediConnect · liquid.css
+   Capa visual "liquid glass": vidrio translúcido sobre un fondo
+   de color vivo, con brillo especular en los bordes y refracción
+   en la barra de navegación.
+
+   Se carga DESPUÉS de base.css y componentes.css y solo cambia
+   superficies (fondo, borde, sombra, desenfoque). No cambia el
+   tamaño ni la posición de nada: la maqueta y las pruebas siguen
+   igual. Si el navegador no soporta backdrop-filter, o la persona
+   pidió menos transparencia, cae a superficies sólidas.
+   ============================================================ */
+
+:root{
+  /* --- vidrio --- */
+  --g-fill:rgba(255,255,255,.58);          /* vidrio claro: tarjetas */
+  --g-fill-2:rgba(255,255,255,.42);        /* vidrio más fino: campos, chips */
+  --g-fill-hi:rgba(255,255,255,.78);       /* vidrio denso: hojas, foco */
+  --g-dark:rgba(14,16,28,.58);             /* vidrio oscuro */
+  --g-brand:rgba(59,91,246,.78);           /* vidrio de marca */
+  --g-blur:22px;
+  --g-sat:185%;
+  --g-edge:rgba(255,255,255,.72);          /* filo de luz */
+  --g-edge-dark:rgba(255,255,255,.16);
+
+  /* sombra en capas: contacto + ambiente, teñida de azul (nunca negro puro) */
+  --g-shadow:0 1px 1px rgba(24,32,80,.04),0 10px 30px -12px rgba(24,32,80,.22);
+  --g-shadow-lg:0 2px 2px rgba(24,32,80,.05),0 24px 60px -20px rgba(24,32,80,.35);
+
+  /* brillo especular: luz arriba, rebote suave abajo */
+  --g-spec:inset 0 1px 0 rgba(255,255,255,.95),inset 0 -1px 0 rgba(255,255,255,.28),
+           inset 0 0 0 1px rgba(255,255,255,.45);
+  --g-spec-dark:inset 0 1px 0 rgba(255,255,255,.22),inset 0 0 0 1px rgba(255,255,255,.08);
+
+  /* el campo de texto deja de ser gris plano */
+  --field:rgba(255,255,255,.5);
+  --line:rgba(120,130,160,.22);
+  --brand-soft:rgba(59,91,246,.13);
+  --ok-soft:rgba(21,127,68,.12);
+  --warn-soft:rgba(214,140,20,.15);
+  --danger-soft:rgba(180,35,24,.11);
+}
+
+/* ------------------------------------------------------------
+   El fondo: sin color detrás, el vidrio no se nota.
+   Cuatro manchas de luz que se mueven muy despacio.
+   ------------------------------------------------------------ */
+.device{
+  background:
+    radial-gradient(60% 40% at 8% 4%, rgba(120,150,255,.55), transparent 70%),
+    radial-gradient(55% 38% at 100% 22%, rgba(186,140,255,.42), transparent 70%),
+    radial-gradient(70% 45% at 0% 78%, rgba(90,210,230,.34), transparent 70%),
+    radial-gradient(60% 40% at 100% 100%, rgba(255,170,200,.34), transparent 70%),
+    linear-gradient(180deg,#EEF1FA 0%,#F4F2FA 50%,#EEF3F8 100%);
+}
+.device::before{
+  content:"";position:absolute;inset:-20%;z-index:-1;pointer-events:none;
+  background:
+    radial-gradient(30% 22% at 30% 30%, rgba(59,91,246,.22), transparent 70%),
+    radial-gradient(28% 20% at 70% 65%, rgba(140,90,255,.18), transparent 70%);
+  animation:deriva 22s ease-in-out infinite alternate;
+}
+@keyframes deriva{
+  0%{transform:translate3d(0,0,0) rotate(0deg)}
+  100%{transform:translate3d(6%,-4%,0) rotate(8deg)}
+}
+.device.dark{background:radial-gradient(80% 60% at 50% 0%,#1B2454 0%,#0B0D18 60%)}
+.device.dark::before{display:none}
+
+/* La barra de estado ya no es un bloque gris: un velo que se desvanece */
+.status{
+  background:linear-gradient(180deg,rgba(240,243,252,.86) 0%,rgba(240,243,252,.55) 60%,rgba(240,243,252,0) 100%);
+  -webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);
+  -webkit-mask-image:linear-gradient(#000 55%,transparent);mask-image:linear-gradient(#000 55%,transparent);
+}
+.status.light{background:none;-webkit-backdrop-filter:none;backdrop-filter:none}
+
+/* ------------------------------------------------------------
+   Superficies de vidrio
+   ------------------------------------------------------------ */
+.card,.tile,.mini,.search,.pill.white,.cb.fill,.qr-caja{
+  background:var(--g-fill);
+  -webkit-backdrop-filter:blur(var(--g-blur)) saturate(var(--g-sat));
+  backdrop-filter:blur(var(--g-blur)) saturate(var(--g-sat));
+  box-shadow:var(--g-spec),var(--g-shadow);
+}
+.qr-caja{background:rgba(255,255,255,.92)}       /* el QR necesita blanco para escanearse */
+
+.card.quiet{background:rgba(255,255,255,.22);box-shadow:var(--g-spec)}
+.card.list{background:var(--g-fill)}
+
+/* variantes tintadas: el color va DENTRO del vidrio */
+.card.soft{background:linear-gradient(135deg,rgba(228,234,255,.78),rgba(214,222,255,.5))}
+.card.warn{background:linear-gradient(135deg,rgba(255,243,220,.82),rgba(252,234,200,.55))}
+.card.okc{background:linear-gradient(135deg,rgba(226,246,234,.82),rgba(210,240,222,.55))}
+.card.dangerc{background:linear-gradient(135deg,rgba(252,232,228,.85),rgba(248,218,212,.55))}
+
+.card.dark{
+  background:linear-gradient(160deg,rgba(28,32,58,.82),rgba(10,12,22,.78));
+  box-shadow:var(--g-spec-dark),var(--g-shadow-lg);
+}
+.card.brand{
+  background:linear-gradient(150deg,rgba(84,112,255,.92) 0%,rgba(59,91,246,.88) 45%,rgba(112,82,240,.86) 100%);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.45),inset 0 0 0 1px rgba(255,255,255,.16),
+             0 20px 44px -18px rgba(59,91,246,.65);
+}
+
+/* ------------------------------------------------------------
+   Botones redondos y pastillas
+   ------------------------------------------------------------ */
+.cb{border-color:var(--line);background:rgba(255,255,255,.28);
+  -webkit-backdrop-filter:blur(14px) saturate(160%);backdrop-filter:blur(14px) saturate(160%);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.7)}
+.cb.field{background:var(--g-fill-2);box-shadow:inset 0 1px 0 rgba(255,255,255,.8),inset 0 0 0 1px rgba(255,255,255,.35)}
+.cb.brand{background:linear-gradient(160deg,#6A86FF,#3B5BF6);box-shadow:inset 0 1px 0 rgba(255,255,255,.45),0 6px 16px -6px rgba(59,91,246,.6)}
+.cb.darkc{background:rgba(14,16,28,.78)}
+
+.pill.fieldbg{background:var(--g-fill-2);box-shadow:inset 0 1px 0 rgba(255,255,255,.8),inset 0 0 0 1px rgba(255,255,255,.35);
+  -webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px)}
+.pill.darkp{background:linear-gradient(160deg,rgba(36,40,64,.92),rgba(12,14,24,.92));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.18),0 8px 20px -10px rgba(10,12,30,.6)}
+.pill.brandp{background:linear-gradient(160deg,#6A86FF,#3B5BF6);box-shadow:inset 0 1px 0 rgba(255,255,255,.4)}
+.pill.outline{border-color:var(--line);background:rgba(255,255,255,.3)}
+
+.sim{background:rgba(255,255,255,.55);box-shadow:inset 0 0 0 1px rgba(120,130,160,.18)}
+
+/* ------------------------------------------------------------
+   Campos
+   ------------------------------------------------------------ */
+.field{
+  background:var(--g-fill-2);
+  box-shadow:inset 0 1px 2px rgba(24,32,80,.06),inset 0 0 0 1px rgba(255,255,255,.55);
+  -webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);
+}
+.field:focus-within{background:rgba(255,255,255,.86);box-shadow:inset 0 0 0 2px var(--brand),0 0 0 5px rgba(59,91,246,.14)}
+.field.err{background:rgba(255,255,255,.86);box-shadow:inset 0 0 0 2px var(--danger),0 0 0 5px rgba(180,35,24,.1)}
+.search:focus-within{box-shadow:inset 0 0 0 2px var(--brand),0 0 0 5px rgba(59,91,246,.14)}
+
+/* ------------------------------------------------------------
+   Agenda: días y horarios
+   ------------------------------------------------------------ */
+.day{background:var(--g-fill-2);box-shadow:inset 0 1px 0 rgba(255,255,255,.85),inset 0 0 0 1px rgba(255,255,255,.4)}
+.day.on{background:linear-gradient(165deg,#6A86FF,#3B5BF6);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.45),0 10px 22px -10px rgba(59,91,246,.7)}
+.slot{background:rgba(255,255,255,.4);border-color:rgba(255,255,255,.7);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.9)}
+.slot.on{background:linear-gradient(165deg,#2A2F4A,#0F1220);border-color:transparent;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.2),0 8px 18px -8px rgba(10,12,30,.6)}
+.slot.off{background:rgba(255,255,255,.18);border-color:transparent;box-shadow:none}
+.cd.on{background:linear-gradient(165deg,#2A2F4A,#0F1220)}
+.docpick.on{background:rgba(59,91,246,.12)}
+
+/* ------------------------------------------------------------
+   Navegación flotante: la pieza "líquida" principal.
+   En Chrome/Edge el filtro SVG #vidrio refracta lo que pasa por
+   debajo; Safari y Firefox ignoran esa línea y se quedan con el
+   desenfoque normal (la declaración anterior).
+   ------------------------------------------------------------ */
+.nav{
+  background:linear-gradient(180deg,rgba(255,255,255,.5),rgba(255,255,255,.28));
+  -webkit-backdrop-filter:blur(18px) saturate(190%);
+  backdrop-filter:blur(18px) saturate(190%);
+  backdrop-filter:url(#vidrio) blur(14px) saturate(190%);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.95),inset 0 -1px 0 rgba(255,255,255,.35),
+             inset 0 0 0 1px rgba(255,255,255,.4),0 18px 40px -14px rgba(24,32,80,.4);
+}
+.nav button{color:#3A3F55;border-color:transparent;background:transparent;
+  transition:background .3s var(--t-curva),color .2s,transform .3s var(--t-curva)}
+.nav button:hover{background:rgba(255,255,255,.4)}
+.nav button.on{
+  background:linear-gradient(165deg,#6A86FF,#3B5BF6);border-color:transparent;color:#fff;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.5),0 8px 18px -6px rgba(59,91,246,.7);
+  transform:scale(1.04);
+}
+.nav button .pt{border-color:#fff}
+
+/* ------------------------------------------------------------
+   Botón de acción principal: vidrio de marca con brillo
+   ------------------------------------------------------------ */
+.action{
+  border-radius:22px;
+  background:linear-gradient(165deg,rgba(110,136,255,.96) 0%,rgba(59,91,246,.96) 55%,rgba(84,64,230,.96) 100%);
+  -webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.5),inset 0 -1px 0 rgba(0,0,40,.15),
+             0 16px 34px -14px rgba(59,91,246,.75);
+  overflow:hidden;
+}
+/* reflejo que cruza el botón al pasar el cursor o tocarlo */
+.action::after{
+  content:"";position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(105deg,transparent 30%,rgba(255,255,255,.35) 48%,transparent 66%);
+  transform:translateX(-120%);transition:transform .7s var(--t-curva);
+}
+.action:hover::after,.action:active::after{transform:translateX(120%)}
+.action .t,.action .spin{position:relative;z-index:1}
+.action.off{background:rgba(150,165,230,.6);box-shadow:inset 0 1px 0 rgba(255,255,255,.4)}
+.action.ghost{background:var(--g-fill);color:var(--ink);box-shadow:var(--g-spec),var(--g-shadow)}
+.action.dangeract{background:linear-gradient(165deg,#D9443A,#B42318);box-shadow:inset 0 1px 0 rgba(255,255,255,.4),0 16px 34px -14px rgba(180,35,24,.7)}
+.action.inline-action{box-shadow:inset 0 1px 0 rgba(255,255,255,.5),0 12px 28px -14px rgba(59,91,246,.7)}
+
+/* ------------------------------------------------------------
+   Hojas, velo y avisos
+   ------------------------------------------------------------ */
+.scrim{background:rgba(20,24,48,.28);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
+.sheet{
+  background:linear-gradient(180deg,rgba(255,255,255,.86),rgba(246,247,252,.8));
+  -webkit-backdrop-filter:blur(30px) saturate(180%);backdrop-filter:blur(30px) saturate(180%);
+  box-shadow:inset 0 1px 0 #fff,0 -20px 50px -20px rgba(24,32,80,.35);
+}
+.grab{background:rgba(60,70,100,.22)}
+.toast{
+  background:rgba(20,22,36,.72);
+  -webkit-backdrop-filter:blur(20px) saturate(180%);backdrop-filter:blur(20px) saturate(180%);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.2),0 14px 34px -12px rgba(10,12,30,.6);
+}
+.toast.ok{background:rgba(17,96,58,.8)}
+.toast.err{background:rgba(142,28,19,.82)}
+
+/* Estado del correo */
+.envio.enviado{background:rgba(21,127,68,.14)}
+.envio.pendiente,.envio.apagado{background:rgba(255,255,255,.5)}
+
+/* Interruptor */
+.sw{background:rgba(120,130,160,.35);box-shadow:inset 0 1px 2px rgba(0,0,0,.08)}
+.sw.on{background:linear-gradient(165deg,#6A86FF,#3B5BF6)}
+.sw::after{box-shadow:0 2px 6px rgba(24,32,80,.25),inset 0 -1px 0 rgba(0,0,0,.05)}
+
+/* Esqueleto de carga sobre vidrio */
+.skel{background:linear-gradient(100deg,rgba(255,255,255,.35) 30%,rgba(255,255,255,.75) 50%,rgba(255,255,255,.35) 70%);
+  background-size:220% 100%}
+
+/* ------------------------------------------------------------
+   Bienvenida: los tres pasos del recorrido
+   ------------------------------------------------------------ */
+.pasos-inicio{list-style:none;display:flex;gap:8px;flex-wrap:wrap;margin:4px 0 0;padding:0}
+.pasos-inicio li{display:inline-flex;align-items:center;gap:8px;height:34px;padding:0 12px 0 6px;border-radius:999px;
+  color:#fff;font-size:12.5px;font-weight:500;
+  background:rgba(255,255,255,.14);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.35),inset 0 0 0 1px rgba(255,255,255,.12)}
+.pasos-inicio b{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;font-size:11px;
+  background:rgba(255,255,255,.9);color:#2440D6}
+.device.dark .action.inline-action{
+  background:linear-gradient(165deg,rgba(255,255,255,.96),rgba(232,236,255,.92));color:#1B2350;
+  box-shadow:inset 0 1px 0 #fff,0 14px 30px -12px rgba(0,0,0,.6)}
+
+/* ------------------------------------------------------------
+   Escenario de escritorio y panel del presentador
+   ------------------------------------------------------------ */
+.stage{
+  background:
+    radial-gradient(900px 600px at 22% 12%,rgba(140,165,255,.55),transparent 65%),
+    radial-gradient(800px 600px at 85% 85%,rgba(200,150,255,.35),transparent 65%),
+    radial-gradient(700px 500px at 90% 10%,rgba(120,220,235,.3),transparent 65%),
+    linear-gradient(135deg,#E9EDFA,#F1EEF9);
+}
+.panel{
+  background:rgba(255,255,255,.55);
+  -webkit-backdrop-filter:blur(28px) saturate(180%);backdrop-filter:blur(28px) saturate(180%);
+  box-shadow:inset 0 1px 0 #fff,inset 0 0 0 1px rgba(255,255,255,.55),var(--g-shadow-lg);
+}
+.case:hover{background:rgba(255,255,255,.5)}
+.seg{background:rgba(255,255,255,.4)}
+.pbtn{background:rgba(255,255,255,.6)}
+
+/* ------------------------------------------------------------
+   Respeto a quien pide menos transparencia o menos movimiento,
+   y a los navegadores sin desenfoque de fondo.
+   ------------------------------------------------------------ */
+@media (prefers-reduced-transparency:reduce){
+  .card,.tile,.mini,.search,.pill.white,.cb.fill,.sheet,.panel,.nav,.field,.toast{
+    -webkit-backdrop-filter:none!important;backdrop-filter:none!important}
+  .card,.tile,.mini,.search,.pill.white,.cb.fill,.sheet,.panel{background:#fff}
+  .nav{background:#F4F5F8}
+  .field{background:#EDEFF2}
+}
+@supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
+  .card,.tile,.mini,.search,.pill.white,.cb.fill,.sheet,.panel{background:rgba(255,255,255,.94)}
+  .nav{background:rgba(244,245,248,.97)}
+}
+@media (prefers-reduced-motion:reduce){
+  .device::before{animation:none}
+  .action::after{display:none}
+}
+@media (prefers-contrast:more){
+  .card,.tile,.mini,.sheet{background:rgba(255,255,255,.95)}
+}
+
+/* En teléfonos reales se baja el desenfoque: rinde mejor al desplazarse */
+body.native{--g-blur:16px}
