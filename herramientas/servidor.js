@@ -9,11 +9,13 @@
    Luego: http://localhost:5500
    ============================================================ */
 
-const http = require('node:http');
-const fs = require('node:fs');
-const path = require('node:path');
+import http from 'node:http';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const RAIZ = path.resolve(__dirname, '..');
+// El proyecto es "type": "module", así que aquí no existe require ni __dirname
+const RAIZ = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PUERTO = Number(process.argv[2] || process.env.PORT || 5500);
 
 const TIPOS = {
@@ -40,7 +42,7 @@ const servidor = http.createServer((req, res) => {
   const destino = path.join(RAIZ, path.normalize(ruta).replace(/^(\.\.[/\\])+/, ''));
 
   // Nunca servir nada fuera de la carpeta del proyecto
-  if (!destino.startsWith(RAIZ)){
+  if (destino !== RAIZ && !destino.startsWith(RAIZ + path.sep)){
     res.writeHead(403).end('Prohibido');
     return;
   }
