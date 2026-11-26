@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#F2F3F5" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#EEF1FA" media="(prefers-color-scheme: light)">
 <meta name="color-scheme" content="light">
 <meta name="description" content="MediConnect · prototipo académico de una app de citas médicas. Proyecto de Lógica de Programación y Desarrollo Web.">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -16,8 +16,19 @@
 <link rel="stylesheet" href="css/base.css">
 <link rel="stylesheet" href="css/componentes.css">
 <link rel="stylesheet" href="css/presentador.css">
+<link rel="stylesheet" href="css/liquid.css">
 </head>
 <body>
+
+<!-- Filtro de refracción para el vidrio líquido de la barra de navegación.
+     Solo lo usan los navegadores Chromium; el resto se queda con el desenfoque. -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <filter id="vidrio" x="0" y="0" width="100%" height="100%" color-interpolation-filters="sRGB">
+    <feTurbulence type="fractalNoise" baseFrequency="0.008 0.012" numOctaves="2" seed="7" result="ruido"/>
+    <feGaussianBlur in="ruido" stdDeviation="2" result="suave"/>
+    <feDisplacementMap in="SourceGraphic" in2="suave" scale="38" xChannelSelector="R" yChannelSelector="G"/>
+  </filter>
+</svg>
 
 <a class="saltar" href="#dev">Saltar al contenido</a>
 

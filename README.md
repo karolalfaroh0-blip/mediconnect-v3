@@ -19,6 +19,8 @@ node herramientas/servidor.js
 
 Después abrí <http://localhost:5500>.
 
+**Publicada:** <https://karolalfaroh0-blip.github.io/mediconnect-v3/>
+
 > Hace falta un servidor (aunque sea este, de 60 líneas) porque la app usa
 > módulos de JavaScript, y los navegadores no los permiten al abrir el archivo
 > con doble clic.
@@ -39,7 +41,7 @@ Después abrí <http://localhost:5500>.
 mediconnect/
 ├── index.html              la app
 ├── comprobante.html        la página que abre el QR de una cita
-├── css/                    identidad visual (base, componentes, panel)
+├── css/                    identidad visual (base, componentes, panel, liquid glass)
 ├── js/
 │   ├── app.js              el armazón: dibuja y escucha los toques
 │   ├── presentador.js      el panel con los 8 casos del curso
@@ -90,6 +92,7 @@ node herramientas/generar-qr.js URL  # genera el QR público
 | [08 · Real, simulado y pendiente](docs/08-alcance.md) | la tabla honesta |
 | [09 · Verificación](docs/09-verificacion.md) | qué se probó y qué falta probar |
 | [10 · n8n Cloud](docs/10-n8n-cloud.md) | la versión en la nube, sin túnel (recomendada) |
+| [11 · Auditoría](docs/11-auditoria.md) | flujo con cuenta primero, diseño liquid glass y hallazgos técnicos |
 
 ---
 
