@@ -145,7 +145,7 @@ vistas.inicio = () => {
           '<span class="cap mute">Puede ser por el modo privado. Vas a poder recorrer la app, pero las citas no se guardarán al recargar.</span></div>'
         : '') +
 
-      '</div></div>'
+      '</div></div></div>'   // cierra: bloque de cita · stack · screen
   };
 };
 
