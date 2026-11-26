@@ -151,28 +151,50 @@
 .docpick.on{background:rgba(59,91,246,.12)}
 
 /* ------------------------------------------------------------
-   Navegación flotante: la pieza "líquida" principal.
-   En Chrome/Edge el filtro SVG #vidrio refracta lo que pasa por
-   debajo; Safari y Firefox ignoran esa línea y se quedan con el
-   desenfoque normal (la declaración anterior).
+   Barra de pestañas: fija abajo, de lado a lado, como en una app
+   real. Ya no flota sobre el contenido: la pantalla deja su espacio.
+   Un indicador de vidrio se desliza a la pestaña elegida.
    ------------------------------------------------------------ */
 .nav{
-  background:linear-gradient(180deg,rgba(255,255,255,.5),rgba(255,255,255,.28));
-  -webkit-backdrop-filter:blur(18px) saturate(190%);
-  backdrop-filter:blur(18px) saturate(190%);
-  backdrop-filter:url(#vidrio) blur(14px) saturate(190%);
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.95),inset 0 -1px 0 rgba(255,255,255,.35),
-             inset 0 0 0 1px rgba(255,255,255,.4),0 18px 40px -14px rgba(24,32,80,.4);
+  left:0;right:0;bottom:0;transform:none;
+  display:grid;grid-template-columns:repeat(var(--n,4),1fr);gap:0;
+  padding:8px 10px 30px;border-radius:0;
+  background:linear-gradient(180deg,rgba(255,255,255,.62),rgba(248,249,255,.82));
+  -webkit-backdrop-filter:blur(24px) saturate(190%);backdrop-filter:blur(24px) saturate(190%);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.95),0 -1px 0 rgba(120,130,160,.16),0 -12px 30px -18px rgba(24,32,80,.25);
 }
-.nav button{color:#3A3F55;border-color:transparent;background:transparent;
-  transition:background .3s var(--t-curva),color .2s,transform .3s var(--t-curva)}
-.nav button:hover{background:rgba(255,255,255,.4)}
-.nav button.on{
-  background:linear-gradient(165deg,#6A86FF,#3B5BF6);border-color:transparent;color:#fff;
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.5),0 8px 18px -6px rgba(59,91,246,.7);
-  transform:scale(1.04);
+.nav button{
+  width:auto;height:52px;border-radius:16px;border:0;background:transparent;position:relative;z-index:1;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+  color:#5A6075;transition:color .25s ease;
 }
-.nav button .pt{border-color:#fff}
+@media (hover:hover){.nav button:hover{color:#2440D6}}
+.nav button.on{background:transparent;color:#2440D6;box-shadow:none;transform:none}
+.nav .nav-ico{position:relative;display:grid;place-items:center;transition:transform .45s cubic-bezier(.3,1.6,.5,1)}
+.nav button.on .nav-ico{transform:translateY(-1px) scale(1.08)}
+.nav .nav-txt{font-size:11px;line-height:13px;font-weight:600;letter-spacing:-.1px}
+.nav button .pt{position:absolute;top:-2px;right:-6px;transform:none;width:8px;height:8px;border:2px solid #fff}
+.nav-ind{
+  position:absolute;top:8px;left:10px;height:52px;border-radius:16px;z-index:0;pointer-events:none;
+  width:calc((100% - 20px) / var(--n,4));
+  transform:translateX(calc(var(--i,0) * 100%));
+  transition:transform .5s cubic-bezier(.3,1.35,.45,1);
+  background:linear-gradient(165deg,rgba(106,134,255,.2),rgba(59,91,246,.14));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.9),inset 0 0 0 1px rgba(59,91,246,.14);
+}
+body.native .nav{bottom:0;padding-bottom:calc(env(safe-area-inset-bottom) + 8px)}
+
+/* La pantalla deja libre el alto de la barra: nada queda tapado */
+.device.con-nav .screen{padding-bottom:calc(112px + var(--teclado))}
+body.native .device.con-nav .screen{padding-bottom:calc(env(safe-area-inset-bottom) + 96px + var(--teclado))}
+
+/* Con botón de acción fijo: un velo abajo para que el contenido no choque con el botón */
+.device.con-accion::after{
+  content:"";position:absolute;left:0;right:0;bottom:0;height:136px;z-index:29;pointer-events:none;
+  background:linear-gradient(0deg,rgba(241,243,251,.96) 40%,rgba(241,243,251,0));
+}
+body.native .device.con-accion::after{height:calc(env(safe-area-inset-bottom) + 120px + var(--teclado))}
+.device.dark.con-accion::after{display:none}
 
 /* ------------------------------------------------------------
    Botón de acción principal: vidrio de marca con brillo
@@ -287,3 +309,56 @@
 
 /* En teléfonos reales se baja el desenfoque: rinde mejor al desplazarse */
 body.native{--g-blur:16px}
+
+/* ============================================================
+   Movimiento
+   Todo corto (≤ 0,6 s), con resorte suave, y solo al ENTRAR a
+   una pantalla: tocar algo dentro de ella no vuelve a animar todo.
+   Quien pidió menos movimiento no ve nada de esto (base.css).
+   ============================================================ */
+@keyframes aparecer{from{opacity:0;transform:translateY(16px) scale(.985)}to{opacity:1;transform:none}}
+@keyframes rebote{0%{transform:scale(.4);opacity:0}60%{transform:scale(1.12);opacity:1}100%{transform:scale(1)}}
+@keyframes onda{from{box-shadow:0 0 0 0 rgba(255,255,255,.65)}to{box-shadow:0 0 0 18px rgba(255,255,255,0)}}
+@keyframes elegir{0%{transform:scale(.92)}60%{transform:scale(1.05)}100%{transform:scale(1)}}
+@keyframes subeAccion{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:none}}
+
+/* Los bloques de cada pantalla entran en cascada */
+.screen.entra > .stack > *,
+.screen.entra > .content{animation:aparecer .5s cubic-bezier(.2,.9,.25,1) both}
+.screen.entra > .stack > *:nth-child(1){animation-delay:.02s}
+.screen.entra > .stack > *:nth-child(2){animation-delay:.06s}
+.screen.entra > .stack > *:nth-child(3){animation-delay:.10s}
+.screen.entra > .stack > *:nth-child(4){animation-delay:.14s}
+.screen.entra > .stack > *:nth-child(5){animation-delay:.18s}
+.screen.entra > .stack > *:nth-child(6){animation-delay:.22s}
+.screen.entra > .stack > *:nth-child(7){animation-delay:.26s}
+.screen.entra > .stack > *:nth-child(n+8){animation-delay:.3s}
+.screen.entra > .content:last-child{animation-delay:.15s}
+
+/* Los médicos del inicio entran uno tras otro */
+.screen.entra .people > *{animation:aparecer .45s cubic-bezier(.2,.9,.25,1) both}
+.screen.entra .people > *:nth-child(2){animation-delay:.08s}
+.screen.entra .people > *:nth-child(3){animation-delay:.12s}
+.screen.entra .people > *:nth-child(4){animation-delay:.16s}
+.screen.entra .people > *:nth-child(5){animation-delay:.2s}
+
+/* El botón principal sube al entrar a la pantalla */
+.screen.entra ~ .action{animation:subeAccion .5s .18s cubic-bezier(.2,.9,.25,1) both}
+
+/* ¡Listo! El check de la cita confirmada rebota y deja una onda */
+.screen.entra .card.brand > .cb.fill{animation:rebote .7s .3s cubic-bezier(.3,1.5,.5,1) both,onda 1.2s .9s ease-out}
+
+/* Tocar: se hunde y vuelve con resorte */
+.tap,.action,.pill,.cb,.slot,.day,.cd{transition:transform .35s cubic-bezier(.3,1.6,.5,1),background .2s,box-shadow .2s,color .2s}
+.tap:active,.pill:active,.cb:active,.slot:active,.day:active,.cd:active{transform:scale(.95)}
+.action:active{transform:scale(.97)}
+
+/* Elegir día u hora: un pequeño rebote */
+.day.on,.slot.on,.cd.on,.docpick.on{animation:elegir .4s cubic-bezier(.3,1.6,.5,1)}
+
+/* Las hojas suben con resorte y el velo aparece suave */
+.sheet{animation:sube .5s cubic-bezier(.2,1.15,.3,1)}
+
+/* Estado del correo: mientras se envía, late */
+.envio.enviando{animation:late 1.2s ease-in-out infinite}
+.envio.enviado{animation:elegir .5s cubic-bezier(.3,1.6,.5,1)}
