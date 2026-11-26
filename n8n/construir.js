@@ -143,51 +143,118 @@ function yaProcesado(idEvento, horas = 24){
   return false;
 }
 
-/** Plantilla del correo: misma identidad visual que la app. */
-function correoHtml({ titulo, saludo, intro, filas, aviso, boton, pie }){
-  const fila = (etiqueta, valor) =>
-    '<tr><td style="padding:6px 0;color:#5B6069;font-size:14px;width:120px;vertical-align:top">' + escapar(etiqueta) + '</td>' +
-    '<td style="padding:6px 0;color:#111214;font-size:15px;font-weight:500">' + escapar(valor) + '</td></tr>';
+/**
+ * Plantilla del correo · estilo "liquid glass" adaptado a correo.
+ * Los clientes de correo no soportan backdrop-filter, así que el vidrio se
+ * imita con: fondo en degradado pastel, tarjeta blanca semitransparente con
+ * filo de luz, y un bloque destacado de marca. Todo en tablas e inline,
+ * con color sólido de respaldo para Outlook y Gmail.
+ *   tono:      'brand' | 'ok' | 'warn' | 'danger'
+ *   destacado: { etiqueta, grande, sub }  la fecha y hora en grande
+ *   boton2:    botón secundario (p. ej. Google Calendar)
+ */
+function correoHtml({ titulo, saludo, intro, filas, aviso, boton, boton2, pie, tono, destacado }){
+  const TONOS = {
+    brand:  ['#3B5BF6', '#6A86FF', '#5440E6', '✓'],
+    ok:     ['#157F44', '#3FB57A', '#0E6A3E', '✓'],
+    warn:   ['#B66A00', '#F2A93B', '#9A5E06', '!'],
+    danger: ['#B42318', '#E2574C', '#8E1C13', '×']
+  };
+  const [c1, c2, c3, signo] = TONOS[tono] || TONOS.brand;
+  const FUENTE = "-apple-system,BlinkMacSystemFont,'SF Pro Text','Segoe UI',Roboto,Helvetica,Arial,sans-serif";
+
+  const fila = (etiqueta, valor, ultima) =>
+    '<tr><td style="padding:12px 0;' + (ultima ? '' : 'border-bottom:1px solid #E6E9F2;') +
+    'color:#6B7080;font-size:13px;width:96px;vertical-align:top">' + escapar(etiqueta) + '</td>' +
+    '<td style="padding:12px 0;' + (ultima ? '' : 'border-bottom:1px solid #E6E9F2;') +
+    'color:#12131A;font-size:15px;line-height:21px;font-weight:600">' + escapar(valor) + '</td></tr>';
+
+  const btn = (b, principal) =>
+    '<a href="' + escapar(b.url) + '" style="display:block;text-align:center;text-decoration:none;font-size:15px;font-weight:600;' +
+    'padding:15px 20px;border-radius:16px;' +
+    (principal
+      ? 'color:#FFFFFF;background-color:' + c1 + ';background-image:linear-gradient(165deg,' + c2 + ' 0%,' + c1 + ' 55%,' + c3 + ' 100%);' +
+        'border:1px solid ' + c1 + ';'
+      : 'color:#1B2350;background-color:#FFFFFF;background-color:rgba(255,255,255,.7);border:1px solid #D9DEEE;') +
+    '">' + escapar(b.texto) + '</a>';
 
   return '<!doctype html><html lang="es"><head><meta charset="utf-8">' +
-    '<meta name="viewport" content="width=device-width,initial-scale=1"></head>' +
-    '<body style="margin:0;padding:0;background:#EEF0F4;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif">' +
-    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#EEF0F4;padding:24px 12px">' +
+    '<meta name="viewport" content="width=device-width,initial-scale=1">' +
+    '<meta name="color-scheme" content="light only"><meta name="supported-color-schemes" content="light">' +
+    '<title>' + escapar(titulo) + '</title></head>' +
+    '<body style="margin:0;padding:0;background-color:#ECEFFA;font-family:' + FUENTE + '">' +
+
+    // texto de vista previa (lo que se ve en la bandeja antes de abrir)
+    '<div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent">' + escapar(intro) + '</div>' +
+
+    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="#ECEFFA" ' +
+    'style="background-color:#ECEFFA;background-image:radial-gradient(60% 50% at 0% 0%,#C9D4FF 0%,rgba(201,212,255,0) 70%),' +
+    'radial-gradient(50% 40% at 100% 30%,#E6D6FF 0%,rgba(230,214,255,0) 70%),' +
+    'radial-gradient(60% 50% at 20% 100%,#CDEFF4 0%,rgba(205,239,244,0) 70%),linear-gradient(180deg,#EEF1FB,#F4F1FA);' +
+    'padding:32px 14px">' +
     '<tr><td align="center">' +
-    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#FFFFFF;border-radius:24px;overflow:hidden">' +
 
-    '<tr><td style="background:${MARCA};padding:24px 28px">' +
-    '<div style="color:#FFFFFF;font-size:13px;font-weight:600;letter-spacing:.3px;opacity:.85">MEDICONNECT</div>' +
-    '<div style="color:#FFFFFF;font-size:24px;line-height:30px;font-weight:400;padding-top:6px">' + escapar(titulo) + '</div>' +
-    '</td></tr>' +
+    // marca
+    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:540px">' +
+    '<tr><td style="padding:0 6px 16px">' +
+    '<table role="presentation" cellpadding="0" cellspacing="0"><tr>' +
+    '<td width="28" height="28" align="center" valign="middle" bgcolor="${MARCA}" style="width:28px;height:28px;border-radius:9px;' +
+    'background-color:${MARCA};color:#FFFFFF;font-size:18px;font-weight:700;line-height:28px">+</td>' +
+    '<td style="padding-left:10px;color:#1B2350;font-size:15px;font-weight:700;letter-spacing:-.2px">MediConnect</td>' +
+    '</tr></table></td></tr>' +
 
-    '<tr><td style="padding:24px 28px 8px;color:#111214;font-size:16px;font-weight:500">' + escapar(saludo) + '</td></tr>' +
-    '<tr><td style="padding:0 28px 16px;color:#5B6069;font-size:15px;line-height:22px">' + escapar(intro) + '</td></tr>' +
+    // tarjeta de vidrio
+    '<tr><td style="background-color:#FFFFFF;background-color:rgba(255,255,255,.74);border:1px solid #FFFFFF;' +
+    'border-radius:28px;box-shadow:0 24px 60px -24px rgba(24,32,80,.28);padding:10px">' +
+
+    // cabecera de color con brillo
+    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>' +
+    '<td bgcolor="' + c1 + '" style="background-color:' + c1 + ';background-image:linear-gradient(150deg,' + c2 + ' 0%,' + c1 + ' 50%,' + c3 + ' 100%);' +
+    'border-radius:22px;padding:26px 24px 24px">' +
+    '<table role="presentation" cellpadding="0" cellspacing="0"><tr><td width="40" height="40" align="center" valign="middle" ' +
+    'style="width:40px;height:40px;border-radius:20px;background-color:#FFFFFF;background-color:rgba(255,255,255,.92);' +
+    'color:' + c1 + ';font-size:20px;font-weight:700;line-height:40px">' + signo + '</td></tr></table>' +
+    '<div style="color:#FFFFFF;font-size:28px;line-height:33px;font-weight:500;letter-spacing:-.6px;padding-top:16px">' + escapar(titulo) + '</div>' +
+
+    (destacado
+      ? '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:18px"><tr>' +
+        '<td style="background-color:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.35);border-radius:18px;padding:14px 16px">' +
+        '<div style="color:#FFFFFF;opacity:.85;font-size:12px;font-weight:600;letter-spacing:.4px;text-transform:uppercase">' + escapar(destacado.etiqueta || '') + '</div>' +
+        '<div style="color:#FFFFFF;font-size:22px;line-height:28px;font-weight:600;letter-spacing:-.4px;padding-top:4px">' + escapar(destacado.grande || '') + '</div>' +
+        (destacado.sub ? '<div style="color:#FFFFFF;opacity:.9;font-size:15px;line-height:21px;padding-top:2px">' + escapar(destacado.sub) + '</div>' : '') +
+        '</td></tr></table>'
+      : '') +
+    '</td></tr></table>' +
+
+    // cuerpo
+    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0">' +
+    '<tr><td style="padding:22px 18px 6px;color:#12131A;font-size:17px;font-weight:600">' + escapar(saludo) + '</td></tr>' +
+    '<tr><td style="padding:0 18px 16px;color:#4E5465;font-size:15px;line-height:23px">' + escapar(intro) + '</td></tr>' +
 
     (filas && filas.length
-      ? '<tr><td style="padding:0 28px 8px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" ' +
-        'style="background:#F2F3F5;border-radius:18px;padding:16px 18px">' +
-        filas.map(f => fila(f[0], f[1])).join('') + '</table></td></tr>'
+      ? '<tr><td style="padding:0 10px 6px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" ' +
+        'style="background-color:#F6F7FC;background-color:rgba(246,247,252,.85);border:1px solid #EAEDF6;border-radius:20px;padding:4px 16px">' +
+        filas.map((f, k) => fila(f[0], f[1], k === filas.length - 1)).join('') + '</table></td></tr>'
       : '') +
 
-    (boton
-      ? '<tr><td style="padding:18px 28px 8px"><a href="' + escapar(boton.url) + '" ' +
-        'style="display:inline-block;background:${MARCA};color:#FFFFFF;text-decoration:none;' +
-        'padding:14px 22px;border-radius:14px;font-size:15px;font-weight:500">' + escapar(boton.texto) + '</a></td></tr>'
-      : '') +
+    (boton ? '<tr><td style="padding:14px 10px 0">' + btn(boton, true) + '</td></tr>' : '') +
+    (boton2 ? '<tr><td style="padding:10px 10px 0">' + btn(boton2, false) + '</td></tr>' : '') +
 
     (aviso
-      ? '<tr><td style="padding:12px 28px 0"><div style="background:#FCF0DA;border-radius:14px;padding:14px 16px;' +
-        'color:#7A4A00;font-size:13px;line-height:19px">' + escapar(aviso) + '</div></td></tr>'
+      ? '<tr><td style="padding:16px 10px 0"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>' +
+        '<td style="background-color:#FFF5E3;border:1px solid #F7E2B8;border-radius:16px;padding:13px 15px;' +
+        'color:#7A4A00;font-size:13px;line-height:19px">' + escapar(aviso) + '</td></tr></table></td></tr>'
       : '') +
 
-    '<tr><td style="padding:20px 28px 28px;color:#7A7F88;font-size:12px;line-height:18px;border-top:1px solid #EDEFF2">' +
-    escapar(pie || '') + '</td></tr>' +
-
+    '<tr><td style="padding:20px 18px 14px;color:#7A7F8E;font-size:12px;line-height:18px">' + escapar(pie || '') + '</td></tr>' +
     '</table>' +
-    '<div style="max-width:520px;color:#8A8F98;font-size:11px;line-height:17px;padding:14px 8px;text-align:center">' +
-    'MediConnect es un prototipo académico de estudiantes. La clínica, los médicos y los pagos son ficticios.' +
-    '</div>' +
+
+    '</td></tr>' +   // fin tarjeta
+
+    '<tr><td style="padding:18px 16px 0;color:#8A8F9E;font-size:11px;line-height:17px;text-align:center">' +
+    'MediConnect es un prototipo académico de estudiantes.<br>La clínica, los médicos y los pagos son ficticios.' +
+    '</td></tr>' +
+    '</table>' +
     '</td></tr></table></body></html>';
 }
 `;
@@ -343,9 +410,13 @@ const html = correoHtml({
     ['Dirección', direccion],
     ['Código', c.codigo]
   ].filter(f => f[1]),
+  destacado: { etiqueta: c.esControl ? 'Tu control' : 'Tu cita',
+               grande: c.fechaTexto || c.fecha,
+               sub: (c.horaTexto || c.hora) + ' · ' + c.medico.nombre },
   boton: enlaces.comprobante ? { texto: 'Ver mi comprobante y QR', url: enlaces.comprobante } : null,
+  boton2: enlaces.calendarioGoogle ? { texto: 'Agregar a Google Calendar', url: enlaces.calendarioGoogle } : null,
   aviso: 'Llegá 10 minutos antes y hacé el check-in con el QR. Podés cambiar o cancelar hasta 4 horas antes.',
-  pie: 'Si querés agregarla a Google Calendar: ' + (enlaces.calendarioGoogle || '')
+  pie: 'También te adjuntamos el archivo .ics: abrilo para guardarla en el calendario de tu teléfono.'
 });
 
 const resultado = {
@@ -435,6 +506,8 @@ const antes = e.anterior;
 const html = esCancelacion
   ? correoHtml({
       titulo: 'Cita cancelada',
+      tono: 'danger',
+      destacado: { etiqueta: 'Ya no está agendada', grande: (c.fechaTexto || c.fecha), sub: (c.horaTexto || c.hora) + ' · ' + ((c.medico && c.medico.nombre) || '') },
       saludo: 'Hola, ' + nombre,
       intro: 'Cancelamos tu cita con ' + ((c.medico && c.medico.nombre) || 'tu médico') +
              '. El horario quedó libre para otra persona y no hay ningún cargo.',
@@ -459,9 +532,11 @@ const html = esCancelacion
         ['Lugar', ((c.lugar && c.lugar.clinica) || '') + ((c.medico && c.medico.consultorio) ? ' · ' + c.medico.consultorio : '')],
         ['Código', c.codigo]
       ].filter(f => f[1] && f[1] !== '—' || f[0] === 'Antes'),
+      destacado: { etiqueta: 'Nueva fecha', grande: (c.fechaTexto || c.fecha), sub: (c.horaTexto || c.hora) + ' · ' + ((c.medico && c.medico.nombre) || '') },
       boton: enlaces.comprobante ? { texto: 'Ver mi comprobante y QR', url: enlaces.comprobante } : null,
+      boton2: enlaces.calendarioGoogle ? { texto: 'Actualizar en Google Calendar', url: enlaces.calendarioGoogle } : null,
       aviso: 'Tu código de llegada sigue siendo el mismo: ' + c.codigo + '.',
-      pie: 'Agregalo a Google Calendar: ' + (enlaces.calendarioGoogle || '')
+      pie: 'Te adjuntamos el calendario actualizado (.ics).'
     });
 
 const resultado = {
@@ -597,6 +672,7 @@ for (const [codigo, p] of Object.entries(guardado.pendientes)){
     asunto: 'Recordatorio: tu cita es ' + (c.fechaTexto || c.fecha) + ' a las ' + (c.horaTexto || c.hora),
     html: correoHtml({
       titulo: 'Tu cita es pronto',
+    destacado: { etiqueta: 'Te esperamos', grande: (c.fechaTexto || c.fecha), sub: (c.horaTexto || c.hora) + ' · ' + ((c.medico && c.medico.nombre) || '') },
       saludo: 'Hola, ' + nombre,
       intro: 'Te recordamos tu cita con ' + ((c.medico && c.medico.nombre) || 'tu médico') +
              '. Llegá 10 minutos antes y hacé el check-in con el QR de tu comprobante.',
@@ -765,6 +841,7 @@ return [{ json: { respuesta: {
   asunto: 'Recordatorio: tu cita es ' + (c.fechaTexto || c.fecha) + ' a las ' + (c.horaTexto || c.hora),
   html: correoHtml({
     titulo: 'Tu cita es pronto',
+    destacado: { etiqueta: 'Te esperamos', grande: (c.fechaTexto || c.fecha), sub: (c.horaTexto || c.hora) + ' · ' + ((c.medico && c.medico.nombre) || '') },
     saludo: 'Hola, ' + nombre,
     intro: 'Te recordamos tu cita con ' + ((c.medico && c.medico.nombre) || 'tu médico') +
            '. Llegá 10 minutos antes y hacé el check-in con el QR de tu comprobante.',
