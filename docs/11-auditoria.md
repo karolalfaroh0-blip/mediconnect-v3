@@ -16,6 +16,10 @@ los flujos de n8n Cloud y el código. Tres frentes: **flujo del paciente**,
 | F4 | Al confirmar no se decía **a qué correo** llegaría la confirmación. | Media | En *Revisá tu cita* y en la cita confirmada aparece la dirección exacta. |
 | F5 | El estado del correo estaba debajo del QR y de los detalles. | Media | Se movió justo debajo de *¡Listo! Tu cita está confirmada*: es lo primero que el paciente quiere saber. |
 | F6 | La bienvenida no explicaba el recorrido. | Baja | Tres pasos visibles: *Creá tu cuenta → Elegí médico y hora → Te llega el correo*. |
+| F7 | **En el teléfono, la barra de navegación se movía con el contenido** y quedaba a media pantalla encima de las tarjetas. Causa: a la pantalla de Inicio le faltaba un `</div>`, así que la barra quedaba *dentro* del área que se desplaza. | Crítica | ✔ Corregido. Una prueba en el navegador recorre todas las pantallas y comprueba que la barra y el botón principal estén fuera del área que se desplaza. |
+| F8 | La barra flotaba encima de las tarjetas aunque no hubiera nada que desplazar. Una app real no tapa su propio contenido. | Alta | ✔ Ahora es una **barra de pestañas fija abajo, de lado a lado, con el nombre de cada sección** y un indicador que se desliza. La pantalla le deja su espacio. |
+| F9 | El botón principal fijo chocaba visualmente con lo que pasaba por debajo. | Media | ✔ Velo degradado detrás del botón. |
+| F10 | En Safari, las barras del navegador se contaban como si fueran el teclado y empujaban todo hacia arriba. | Alta | ✔ Solo cuenta como teclado si hay un campo con el foco. |
 
 **Recorrido final:** Bienvenida → Crear cuenta (llega la bienvenida por correo)
 → Elegir médico → Elegir día y hora → Revisar → Confirmar (llega la
@@ -33,7 +37,7 @@ pruebas siguen iguales.
 |---|---|---|
 | Fondo de la app | gris plano `#F2F3F5` | cuatro luces de color (azul, violeta, turquesa, rosa) que se mueven despacio; sin color detrás el vidrio no se nota |
 | Tarjetas | blanco sólido | vidrio 58 % con `backdrop-filter: blur + saturate`, filo de luz arriba y sombra en capas teñida de azul |
-| Barra de navegación | píldora negra | vidrio claro con **refracción real** (filtro SVG `#vidrio`) en Chrome/Edge; desenfoque normal en Safari/Firefox |
+| Barra de navegación | píldora negra flotante | barra de pestañas de vidrio, fija abajo, con nombres e indicador deslizante (se quitó la refracción SVG: deformaba lo que pasaba por debajo) |
 | Botón principal | azul plano | vidrio de marca con degradado, brillo interior y un reflejo que cruza al tocarlo |
 | Días, horarios, campos | gris plano | vidrio fino; el elegido es vidrio de marca u oscuro con brillo |
 | Hojas, avisos, panel | sólidos | vidrio denso con velo desenfocado detrás |
@@ -49,6 +53,21 @@ pruebas siguen iguales.
 - El QR queda sobre blanco al 92 %: con vidrio no se escanearía bien.
 
 ---
+
+## 2b · Movimiento
+
+Todo dura 0,6 s o menos, con resorte suave, y se anima **solo al entrar a una pantalla**
+(tocar algo dentro no vuelve a animar todo):
+
+- los bloques de cada pantalla entran en cascada;
+- los médicos del inicio aparecen uno tras otro;
+- el botón principal sube al entrar;
+- el ✓ de *¡Listo! Tu cita está confirmada* rebota y deja una onda;
+- botones, días y horarios se hunden al tocarlos y vuelven con resorte;
+- el indicador de la pestaña se desliza de la anterior a la nueva;
+- las hojas suben con resorte; el estado *Enviando…* del correo late.
+
+Con *reducir movimiento* activado en el teléfono no se ve ninguna de estas animaciones.
 
 ## 3 · Solidez técnica
 
