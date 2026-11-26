@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="es-SV">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#F2F3F5" media="(prefers-color-scheme: light)">
+<meta name="color-scheme" content="light">
+<meta name="description" content="MediConnect · prototipo académico de una app de citas médicas. Proyecto de Lógica de Programación y Desarrollo Web.">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="robots" content="noindex">
+<title>MediConnect · Tu cita médica, sin filas</title>
+
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%233B5BF6'/><path d='M16 9v14M9 16h14' stroke='white' stroke-width='3.4' stroke-linecap='round'/></svg>">
+<link rel="stylesheet" href="css/base.css">
+<link rel="stylesheet" href="css/componentes.css">
+<link rel="stylesheet" href="css/presentador.css">
+</head>
+<body>
+
+<a class="saltar" href="#dev">Saltar al contenido</a>
+
+<div class="stage" id="stage">
+  <div class="brandtag"><i aria-hidden="true">+</i>MediConnect <span>· Prototipo académico</span></div>
+
+  <div class="phone-wrap" id="phoneWrap">
+    <div class="phone" id="phone">
+      <div class="rim" aria-hidden="true"></div>
+      <div class="bezel" aria-hidden="true"></div>
+      <span class="hb l" style="top:150px;height:34px" aria-hidden="true"></span>
+      <span class="hb l" style="top:208px;height:62px" aria-hidden="true"></span>
+      <span class="hb l" style="top:284px;height:62px" aria-hidden="true"></span>
+      <span class="hb r" style="top:236px;height:96px" aria-hidden="true"></span>
+      <span class="hb r" style="top:520px;height:58px" aria-hidden="true"></span>
+
+      <main class="device" id="dev" tabindex="-1" aria-label="Aplicación MediConnect"></main>
+
+      <div class="island" aria-hidden="true"></div>
+      <div class="glare" aria-hidden="true"></div>
+    </div>
+  </div>
+
+  <aside class="panel" id="panel" aria-label="Panel del presentador"></aside>
+</div>
+
+<button class="pfab" id="pfab" aria-controls="panel" aria-expanded="false">Panel de casos</button>
+<div class="pscrim" id="pscrim"></div>
+
+<!-- Region que leen los lectores de pantalla cuando algo cambia -->
+<div class="sr-only" id="anuncio" role="status" aria-live="polite"></div>
+<div class="sr-only" id="titulo-pantalla" aria-live="polite"></div>
+
+<noscript>
+  <div style="position:fixed;inset:0;display:grid;place-items:center;background:#fff;z-index:999;padding:24px;text-align:center;font-family:system-ui">
+    <div>
+      <h1 style="font-size:22px;margin-bottom:8px">MediConnect necesita JavaScript</h1>
+      <p style="color:#5B6069">Activá JavaScript en tu navegador para recorrer el prototipo.</p>
+    </div>
+  </div>
+</noscript>
+
+<script type="module" src="js/app.js"></script>
+</body>
+</html>

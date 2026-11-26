@@ -1,0 +1,23 @@
+# ---- nada de secretos en el repositorio ----
+.env
+.env.*
+!.env.ejemplo
+*.key
+*.pem
+credenciales*.json
+*-credentials.json
+.n8n-api-key
+
+# ---- carpetas de trabajo ----
+node_modules/
+.n8n/
+.DS_Store
+Thumbs.db
+*.log
+salida/
+tmp/
+
+# ---- lo que genera la computadora ----
+qr-*.svg
+qr-*.png
+!assets/qr-publico.svg

@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="es-SV">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#F2F3F5">
+<meta name="robots" content="noindex">
+<title>Comprobante de cita · MediConnect</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%233B5BF6'/><path d='M16 9v14M9 16h14' stroke='white' stroke-width='3.4' stroke-linecap='round'/></svg>">
+<link rel="stylesheet" href="css/base.css">
+<link rel="stylesheet" href="css/componentes.css">
+<style>
+  /* Esta pagina no usa el marco de telefono: se ve como una pagina normal */
+  body{display:block;overflow:auto;background:var(--app)}
+  .hoja{max-width:460px;margin:0 auto;padding:24px 20px 56px;display:flex;flex-direction:column;gap:16px}
+  .marca{display:flex;align-items:center;gap:10px;font-weight:600;font-size:14px;color:#3A3E46}
+  .marca i{width:24px;height:24px;border-radius:8px;background:var(--brand);display:grid;place-items:center;color:#fff;font-style:normal}
+  @media (min-width:700px){ .hoja{padding-top:48px} }
+</style>
+</head>
+<body>
+
+<div class="hoja" id="hoja">
+  <div class="marca"><i aria-hidden="true">+</i>MediConnect <span class="mute" style="font-weight:400">· comprobante</span></div>
+  <div class="card" aria-busy="true"><span class="skel l1"></span><span class="skel l2"></span><span class="skel l3"></span></div>
+</div>
+
+<div class="sr-only" id="anuncio" role="status" aria-live="polite"></div>
+
+<script type="module">
+import { ic, esc, cara, boton } from './js/nucleo/ui.js';
+import { medico } from './js/nucleo/datos.js';
+import { citaPorCodigo, checkIn, ESTADOS } from './js/nucleo/agenda.js';
+import { usuarioActual } from './js/nucleo/cuenta.js';
+import { fechaLarga, hora12, faltan, horasFaltantes } from './js/nucleo/fechas.js';
+import { svg as qrSvg } from './js/nucleo/qr.js';
+import { descargarIcs, urlGoogle } from './js/nucleo/calendario.js';
+import { APP, ZONA } from './js/nucleo/config.js';
+
+const hoja = document.getElementById('hoja');
+const codigo = new URLSearchParams(location.search).get('cita');
+
+const marca = '<div class="marca"><i aria-hidden="true">+</i>MediConnect <span class="mute" style="font-weight:400">· comprobante</span></div>';
+
+function anunciar(t){ document.getElementById('anuncio').textContent = t; }
+
+function pintar(){
+  const u = usuarioActual();
+
+  if (!codigo){
+    hoja.innerHTML = marca +
+      '<div class="card"><h1 class="title" style="margin:0;font-weight:400">Falta el código</h1>' +
+      '<p class="body mute">Esta página se abre escaneando el QR de una cita.</p>' +
+      '<a class="pill h52 darkp tap" href="./" style="justify-content:center;text-decoration:none">Ir a MediConnect</a></div>';
+    return;
+  }
+
+  const cita = citaPorCodigo(codigo, u?.id || null);
+
+  // No existe en este teléfono, o es de otra cuenta
+  if (!cita || cita.ajena){
+    hoja.innerHTML = marca +
+      '<div class="card" style="gap:14px">' +
+      '<span class="cb s52 field">' + ic('qr', 24) + '</span>' +
+      '<h1 class="title" style="margin:0;font-weight:400">Código ' + esc(codigo) + '</h1>' +
+      '<p class="body mute" style="margin:0">' +
+      (cita && cita.ajena
+        ? 'Ese pase pertenece a otra cuenta. Iniciá sesión con la cuenta que reservó la cita.'
+        : 'No encontramos esa cita en este teléfono.') + '</p>' +
+      '<div class="card p16" style="background:var(--field);gap:8px"><div class="row top">' +
+      '<span class="mute">' + ic('info', 18) + '</span>' +
+      '<span class="cap mute grow">Esto es lo esperado: en este prototipo las citas se guardan ' +
+      '<b>solo en el teléfono donde se reservaron</b>. En un sistema con servidor, recepción ' +
+      'validaría el código contra la base de datos de la clínica.</span></div></div>' +
+      '<div class="row" style="gap:10px">' +
+      '<a class="pill h52 darkp tap grow" href="./" style="justify-content:center;text-decoration:none">Abrir MediConnect</a>' +
+      '<a class="cb s52 fill tap" href="tel:' + APP.clinica.telefono.replace(/\D/g, '') + '" aria-label="Llamar a la clínica">' +
+      ic('phone') + '</a></div></div>';
+    anunciar('No encontramos esa cita en este teléfono');
+    return;
+  }
+
+  const d = medico(cita.medicoId);
+  const cancelada = cita.estado === ESTADOS.CANCELADA;
+  const atendida = cita.estado === ESTADOS.ATENDIDA;
+  const usado = !!cita.checkIn;
+  const minutos = horasFaltantes(cita.fecha, cita.hora) * 60;
+  const puedeCheckIn = cita.estado === ESTADOS.AGENDADA && minutos <= 120 && minutos >= -30;
+
+  const estadoPill = cancelada ? '<span class="pill sm dangerp">Cancelada</span>'
+    : atendida ? '<span class="pill sm okp">Atendida</span>'
+    : usado ? '<span class="pill sm warnp">Check-in hecho</span>'
+    : '<span class="pill sm bsoftp">Válida</span>';
+
+  hoja.innerHTML = marca +
+
+    '<div class="card ' + (cancelada ? 'dangerc' : '') + '" style="gap:14px">' +
+    '<div class="row"><span class="ct grow">Comprobante de cita</span>' + estadoPill + '</div>' +
+    '<h1 class="title" style="margin:0;font-weight:400">' +
+    (cancelada ? '<s>' : '') + fechaLarga(cita.fecha) + '<br>' + hora12(cita.hora) + (cancelada ? '</s>' : '') + '</h1>' +
+    '<div class="row" style="gap:10px">' + cara(d.f, 40) +
+    '<div class="grow stack" style="gap:2px"><span class="bm">' + esc(d.n) + '</span>' +
+    '<span class="cap mute">' + esc(d.sp) + ' · ' + esc(d.room) + '</span></div></div>' +
+    '<div class="sep"></div>' +
+    '<div class="row" style="gap:10px"><span class="mute">' + ic('pin', 18) + '</span>' +
+    '<span class="body grow">' + esc(APP.clinica.nombre) + ' · ' + esc(APP.clinica.direccion) + '</span></div>' +
+    '<div class="row" style="gap:10px"><span class="mute">' + ic('clock', 18) + '</span>' +
+    '<span class="body grow">' + esc(ZONA.etiqueta) + (cancelada || atendida ? '' : ' · ' + faltan(cita.fecha, cita.hora)) + '</span></div>' +
+    '</div>' +
+
+    (cancelada
+      ? '<div class="card dangerc" style="gap:8px" role="alert"><div class="row top">' +
+        '<span style="color:var(--danger)">' + ic('alert', 18) + '</span>' +
+        '<span class="cap grow" style="color:var(--danger)">Esta cita fue cancelada: el pase ya no sirve para hacer check-in.</span></div></div>'
+      : '<div class="card" style="gap:14px;align-items:center">' +
+        '<span class="qr-caja">' + qrSvg(location.href, { tamano: 200, titulo: 'Código QR de la cita ' + cita.codigo }) + '</span>' +
+        '<span class="pill fieldbg">' + esc(cita.codigo) + '</span>' +
+        '<span class="cap mute tc">Mostralo en recepción</span></div>') +
+
+    (puedeCheckIn
+      ? '<button class="action inline-action" id="btn-checkin"><span class="t">Ya llegué · hacer check-in</span></button>'
+      : !cancelada && !atendida && !usado
+        ? '<div class="card p16" style="gap:8px"><div class="row top">' +
+          '<span class="mute">' + ic('clock', 18) + '</span>' +
+          '<span class="cap mute grow">' + (minutos > 120
+            ? 'El check-in se habilita 2 horas antes de tu cita.'
+            : 'La ventana de check-in ya pasó. Acercate a recepción.') + '</span></div></div>'
+        : usado
+          ? '<div class="card okc" style="gap:8px"><div class="row top">' +
+            '<span style="color:var(--ok)">' + ic('check', 18) + '</span>' +
+            '<span class="cap grow">Ya hiciste el check-in a las ' +
+            new Date(cita.checkIn).toLocaleTimeString('es-SV', { hour: '2-digit', minute: '2-digit' }) +
+            '. Un pase se usa una sola vez.</span></div></div>'
+          : '') +
+
+    (cancelada ? '' :
+      '<div class="row" style="gap:10px">' +
+      '<button class="pill h52 white tap grow" id="btn-ics" style="justify-content:center">' + ic('download', 18) + 'Archivo .ics</button>' +
+      '<a class="pill h52 white tap grow" href="' + esc(urlGoogle(cita, { urlComprobante: location.href })) + '" target="_blank" rel="noopener" style="justify-content:center;text-decoration:none">' +
+      ic('calendar', 18) + 'Google</a></div>') +
+
+    '<a class="pill h52 fieldbg tap" href="./" style="justify-content:center;text-decoration:none">Abrir MediConnect</a>' +
+
+    '<p class="cap mute tc" style="margin:0">Prototipo académico · el comprobante no contiene datos médicos</p>';
+
+  const btnIcs = document.getElementById('btn-ics');
+  if (btnIcs) btnIcs.addEventListener('click', () => {
+    const r = descargarIcs(cita, { urlComprobante: location.href });
+    anunciar(r === 'descargado' ? 'Archivo .ics descargado' : 'Archivo .ics abierto');
+  });
+
+  const btn = document.getElementById('btn-checkin');
+  if (btn) btn.addEventListener('click', () => {
+    const r = checkIn({ codigo: cita.codigo, usuarioId: u?.id || null });
+    if (!r.ok){
+      anunciar(r.error);
+      alert(r.error);
+    } else {
+      anunciar('Check-in listo');
+    }
+    pintar();
+  });
+}
+
+pintar();
+</script>
+</body>
+</html>

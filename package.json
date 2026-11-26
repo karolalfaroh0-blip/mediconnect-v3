@@ -1,0 +1,15 @@
+{
+  "name": "mediconnect",
+  "version": "3.0.0",
+  "private": true,
+  "description": "Prototipo academico de una app de citas medicas. Proyecto de Logica de Programacion y Desarrollo Web.",
+  "type": "module",
+  "scripts": {
+    "inicio": "node herramientas/servidor.js 5500",
+    "test": "node --test pruebas/logica.test.js pruebas/flujos-n8n.test.js",
+    "qr": "node herramientas/generar-qr.js",
+    "n8n:construir": "node n8n/construir.js"
+  },
+  "engines": { "node": ">=18" },
+  "license": "MIT"
+}
