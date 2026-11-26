@@ -210,15 +210,20 @@ vistas.confirmar = () => {
       (!u
         ? '<div class="card soft" style="gap:10px">' +
           '<div class="row" style="gap:10px"><span class="cb s40 brand">' + ic('mail', 18) + '</span>' +
-          '<div class="grow stack" style="gap:2px"><span class="ct">¿Guardamos esta cita a tu nombre?</span>' +
-          '<span class="cap mute">Con una cuenta la podés consultar después y te llega la confirmación por correo. ' +
-          'También podés seguir como invitado.</span></div></div></div>'
-        : '') +
+          '<div class="grow stack" style="gap:2px"><span class="ct">Último paso: tu cuenta</span>' +
+          '<span class="cap mute">La cita se guarda a tu nombre y te enviamos la confirmación con fecha, hora, ' +
+          'lugar y tu código QR al correo.</span></div></div></div>'
+        : '<div class="card p16" style="flex-direction:row;align-items:center;gap:12px">' +
+          '<span class="cb s40 bsoft">' + ic('mail', 18) + '</span>' +
+          '<span class="grow stack" style="gap:2px"><span class="bm">Te enviamos la confirmación a</span>' +
+          '<span class="cap mute">' + esc(u.correo || (perfil() && perfil().correo) || '') + '</span></span></div>') +
 
       (S.ultimoError ? avisoCaja('danger', '!', 'No pudimos guardar la cita', esc(S.ultimoError)) : '') +
       '</div></div>' +
       accion(
-        S.reservando ? 'Guardando tu cita…' : cubre ? (S.esControl ? 'Confirmar control' : 'Confirmar cita') : 'Continuar al pago',
+        S.reservando ? 'Guardando tu cita…'
+          : !u ? 'Crear cuenta y confirmar'
+          : cubre ? (S.esControl ? 'Confirmar control' : 'Confirmar cita') : 'Continuar al pago',
         cubre ? 'confirmarCita' : 'irPago',
         { estado: S.reservando ? 'cargando' : 'normal' })
   };
@@ -458,6 +463,15 @@ export async function guardarCita({ modoPago }){
   repintar();
 }
 
+/* Para confirmar hace falta cuenta: con ella se guarda la cita y llega el correo.
+   Se va directo al registro y, al terminar, se vuelve a esta misma cita. */
+function pedirCuenta(){
+  S.auth = { modo: 'registro', nombre: '', correo: '', clave: '', verClave: false,
+             errores: {}, enviando: false, error: null, destino: 'confirmar' };
+  log('confirmar sin cuenta -> registro primero (la cita espera)');
+  ir('cuenta');
+}
+
 /* ------------------------------------------------------------
    Acciones
    ------------------------------------------------------------ */
@@ -496,12 +510,12 @@ export const acciones = {
   },
 
   confirmarCita(){
-    if (!usuario()){ abrirHoja('guardarCita'); return; }
+    if (!usuario()){ pedirCuenta(); return; }
     guardarCita({ modoPago: 'seguro' });
   },
 
   irPago(){
-    if (!usuario()){ abrirHoja('guardarCita'); return; }
+    if (!usuario()){ pedirCuenta(); return; }
     S.metodoPago = 0;
     ir('pago');
   },

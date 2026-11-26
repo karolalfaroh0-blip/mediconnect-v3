@@ -121,6 +121,22 @@ vistas.cita = () => {
 
       banner +
 
+      // Estado real del correo
+      '<div class="card p16" style="gap:12px">' +
+      '<div class="row" style="gap:10px"><span class="cb s40 field">' + ic('mail', 18) + '</span>' +
+      '<div class="grow stack" style="gap:4px"><span class="bm">Confirmación por correo</span>' +
+      insigniaEnvio(cita) +
+      (u && u.correo ? '<span class="cap mute">' + esc(u.correo) + '</span>' : '') + '</div></div>' +
+      (cita.notificacion?.estado === 'fallo'
+        ? '<span class="cap mute">' + esc(cita.notificacion.error || '') + '. Tu cita sigue guardada.</span>' +
+          boton('Reintentar el envío', 'reintentarCorreo', { clase: 'fieldbg', icono: 'refresh' })
+        : cita.notificacion?.estado === 'apagado'
+          ? '<span class="cap mute">Las automatizaciones todavía no están conectadas en esta demo. ' +
+            'Se configuran en Perfil → Ajustes de la demo.</span>'
+          : '') +
+      '</div>' +
+
+
       // Pase de llegada con QR real
       (cancelada || atendida ? '' :
         '<div class="card" style="gap:14px">' +
@@ -140,20 +156,6 @@ vistas.cita = () => {
         '</div>') +
 
       detalleCita(cita) +
-
-      // Estado real del correo
-      '<div class="card p16" style="gap:12px">' +
-      '<div class="row" style="gap:10px"><span class="cb s40 field">' + ic('mail', 18) + '</span>' +
-      '<div class="grow stack" style="gap:4px"><span class="bm">Confirmación por correo</span>' +
-      insigniaEnvio(cita) + '</div></div>' +
-      (cita.notificacion?.estado === 'fallo'
-        ? '<span class="cap mute">' + esc(cita.notificacion.error || '') + '. Tu cita sigue guardada.</span>' +
-          boton('Reintentar el envío', 'reintentarCorreo', { clase: 'fieldbg', icono: 'refresh' })
-        : cita.notificacion?.estado === 'apagado'
-          ? '<span class="cap mute">Las automatizaciones todavía no están conectadas en esta demo. ' +
-            'Se configuran en Perfil → Ajustes de la demo.</span>'
-          : '') +
-      '</div>' +
 
       // Calendario
       (cancelada ? '' :

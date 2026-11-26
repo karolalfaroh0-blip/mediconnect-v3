@@ -17,8 +17,9 @@ export const vistas = {};
 
 /* ------------------------------------------------------------
    Bienvenida
-   Se puede entrar sin cuenta: explorar primero, registrarse solo
-   cuando haga falta guardar una cita.
+   La cuenta va primero: con ella se guardan las citas y llega la
+   confirmación por correo. Explorar sin cuenta queda como enlace
+   secundario (útil en la exposición), pero para agendar se pide.
    ------------------------------------------------------------ */
 vistas.bienvenida = () => ({
   oscura: true,
@@ -30,13 +31,16 @@ vistas.bienvenida = () => ({
     '<div class="content stack" style="gap:16px">' +
     '<p class="body inv dim" style="margin:0">Bienvenido a MediConnect</p>' +
     '<h1 class="hero-xl inv" style="margin:0;font-weight:400">Tu cita médica,<br><b style="font-weight:500">sin filas</b> y en<br>minutos.</h1>' +
-    '<p class="body inv dim" style="margin:0;max-width:300px">Mirá cómo funciona sin registrarte. ' +
-    'La cuenta se pide solo cuando querés guardar una cita.</p>' +
+    '<p class="body inv dim" style="margin:0;max-width:300px">Creá tu cuenta en un minuto, agendá con tu médico ' +
+    'y recibí la confirmación con todos los datos en tu correo.</p>' +
+    '<ol class="pasos-inicio content" aria-label="Cómo funciona">' +
+    '<li><b>1</b>Creá tu cuenta</li><li><b>2</b>Elegí médico y hora</li><li><b>3</b>Te llega el correo</li></ol>' +
     '</div>' +
-    '<div class="content stack" style="gap:4px;padding-top:28px">' +
-    accionEnLinea('Empezar a explorar', 'empezar') +
+    '<div class="content stack" style="gap:4px;padding-top:24px">' +
+    accionEnLinea('Crear mi cuenta', 'irCuenta', { valor: 'registro' }) +
     '<button class="tap bm inv" data-act="irCuenta" data-v="sesion" ' +
-    'style="padding:14px;text-align:center;opacity:.9">Ya tengo cuenta · Iniciar sesión</button>' +
+    'style="padding:14px;text-align:center;opacity:.92">Ya tengo cuenta · Iniciar sesión</button>' +
+    '<button class="tap cap inv" data-act="empezar" style="padding:4px;text-align:center;opacity:.6">Solo quiero mirar</button>' +
     '</div></div>'
 });
 

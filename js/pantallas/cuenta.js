@@ -10,10 +10,10 @@ import { S, ir, volver, tabear, abrirHoja, cerrarHoja, avisar, repintar, log,
 import { registrar, iniciarSesion, cerrarSesion, guardarPerfil, guardarSeguros,
          reglas, edad, primerNombre, criptoFuerte } from '../nucleo/cuenta.js';
 import { adoptarCitasDeInvitado, citasDe, resumenAgenda } from '../nucleo/agenda.js';
-import { aseguradora, nombreCortoSeguro } from '../nucleo/datos.js';
+import { aseguradora, nombreCortoSeguro, medico, NombreCon } from '../nucleo/datos.js';
 import { avisarRegistro, baseN8n, guardarBaseN8n, validarBase, probarConexion, configurado } from '../nucleo/automatizacion.js';
 import { leerAjustes, guardarAjustes, borrarTodo, almacenamientoDisponible, leer } from '../nucleo/almacen.js';
-import { hoy } from '../nucleo/fechas.js';
+import { hoy, fechaLarga, hora12 } from '../nucleo/fechas.js';
 import { ZONA } from '../nucleo/config.js';
 
 export const vistas = {};
@@ -45,6 +45,15 @@ vistas.cuenta = () => {
         : 'Usá el correo y la contraseña con los que te registraste en este teléfono.') + '</p>' +
 
       (a.error ? avisoCaja('danger', '!', 'No pudimos continuar', esc(a.error)) : '') +
+
+      // Si viene de confirmar una cita, se recuerda cuál queda esperando
+      (a.destino === 'confirmar' && S.medicoId && S.fecha && S.hora
+        ? '<div class="card soft" style="flex-direction:row;align-items:center;gap:12px">' +
+          '<span class="cb s40 brand">' + ic('calendar', 18) + '</span>' +
+          '<span class="grow stack" style="gap:2px"><span class="bm">Tu cita te espera</span>' +
+          '<span class="cap mute">' + esc(NombreCon(medico(S.medicoId))) + ' · ' + esc(fechaLarga(S.fecha)) +
+          ', ' + esc(hora12(S.hora)) + '</span></span></div>'
+        : '') +
 
       '<div class="card" style="gap:16px">' +
       (esRegistro
@@ -393,7 +402,9 @@ export const acciones = {
                errores: {}, enviando: false, error: null, destino: null };
     S.seguroElegido = (r.usuario.seguros.find(s => s.principal) || r.usuario.seguros[0] || {}).id || null;
 
-    avisar(a.modo === 'registro' ? '¡Listo! Tu cuenta quedó creada' : 'Bienvenido de vuelta', 'ok');
+    avisar(a.modo === 'registro'
+      ? (destino === 'confirmar' ? 'Cuenta creada · ahora confirmá tu cita' : '¡Listo! Tu cuenta quedó creada')
+      : 'Bienvenido de vuelta', 'ok');
 
     S.historial = [];
     ir(destino || 'inicio', { reemplazar: true });
