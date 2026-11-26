@@ -20,15 +20,6 @@
 </head>
 <body>
 
-<!-- Filtro de refracción para el vidrio líquido de la barra de navegación.
-     Solo lo usan los navegadores Chromium; el resto se queda con el desenfoque. -->
-<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
-  <filter id="vidrio" x="0" y="0" width="100%" height="100%" color-interpolation-filters="sRGB">
-    <feTurbulence type="fractalNoise" baseFrequency="0.008 0.012" numOctaves="2" seed="7" result="ruido"/>
-    <feGaussianBlur in="ruido" stdDeviation="2" result="suave"/>
-    <feDisplacementMap in="SourceGraphic" in2="suave" scale="38" xChannelSelector="R" yChannelSelector="G"/>
-  </filter>
-</svg>
 
 <a class="saltar" href="#dev">Saltar al contenido</a>
 
