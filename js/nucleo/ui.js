@@ -119,13 +119,19 @@ export const barraEstado = (clara) =>
   '<rect x="47.5" y="1" width="18" height="10" rx="3" fill="none" stroke="currentColor" stroke-opacity=".4"/>' +
   '<rect x="49.5" y="3" width="14" height="6" rx="1.5"/></g></svg></div>';
 
+export const PESTANAS = [['inicio','home','Inicio'], ['citas','calendar','Citas'], ['expediente','file','Expediente'], ['perfil','user','Perfil']];
+
+/* Barra de pestañas fija abajo, con nombre en cada una y un indicador
+   que se desliza de la pestaña anterior a la nueva (lo anima app.js). */
 export const navegacion = (activa, avisos) =>
-  '<nav class="nav" aria-label="Secciones principales">' +
-  [['inicio','home','Inicio'], ['citas','calendar','Citas'], ['expediente','file','Expediente'], ['perfil','user','Perfil']]
-    .map(([s, i, l]) =>
-      '<button class="' + (s === activa ? 'on' : '') + '" data-tab="' + s + '" aria-label="' + l + '"' +
-      (s === activa ? ' aria-current="page"' : '') + '>' + ic(i, 22) +
-      (avisos && avisos[s] ? '<span class="pt"></span>' : '') + '</button>').join('') +
+  '<nav class="nav" aria-label="Secciones principales" style="--n:' + PESTANAS.length + ';--i:' +
+  Math.max(0, PESTANAS.findIndex(p => p[0] === activa)) + '">' +
+  '<span class="nav-ind" aria-hidden="true"></span>' +
+  PESTANAS.map(([s, i, l]) =>
+      '<button class="' + (s === activa ? 'on' : '') + '" data-tab="' + s + '"' +
+      (s === activa ? ' aria-current="page"' : '') + '>' +
+      '<span class="nav-ico">' + ic(i, 22) + (avisos && avisos[s] ? '<span class="pt"></span>' : '') + '</span>' +
+      '<span class="nav-txt">' + l + '</span></button>').join('') +
   '</nav>';
 
 /** Barra de accion principal. `estado` puede ser 'normal' | 'off' | 'cargando' */
