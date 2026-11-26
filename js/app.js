@@ -62,6 +62,9 @@ const ETIQUETA_HOJA = {
    ------------------------------------------------------------ */
 const dev = document.getElementById('dev');
 let hojaAbierta = null;
+let pestanaPrevia = null;
+// Si algo intenta desplazar el contenedor del teléfono, vuelve a su lugar
+dev.addEventListener('scroll', () => { if (dev.scrollTop || dev.scrollLeft){ dev.scrollTop = 0; dev.scrollLeft = 0; } });
 
 function render(conAnimacion){
   const fn = VISTAS[S.pantalla] || VISTAS.inicio;
@@ -79,8 +82,11 @@ function render(conAnimacion){
 
   dev.classList.toggle('dark', !!v.oscura);
 
-  // La navegación flotante y la barra de acción fija se estorban: solo una a la vez
-  const llevaNav = v.nav && !v.html.includes('data-fija="1"');
+  // La navegación y la barra de acción fija se estorban: solo una a la vez
+  const llevaAccion = v.html.includes('data-fija="1"');
+  const llevaNav = v.nav && !llevaAccion;
+  dev.classList.toggle('con-nav', !!llevaNav);
+  dev.classList.toggle('con-accion', llevaAccion);
   let html = barraEstado(v.oscura) + v.html + (llevaNav ? navegacion(v.nav, avisosDeNavegacion()) : '');
 
   if (S.hoja && HOJAS[S.hoja]){
@@ -91,10 +97,28 @@ function render(conAnimacion){
 
   dev.innerHTML = html;
 
+  // El contenedor del teléfono nunca se desplaza: solo la pantalla de adentro.
+  // (Un foco o un scrollIntoView podía correrlo y dejar la barra a media pantalla.)
+  dev.scrollTop = 0; dev.scrollLeft = 0;
+
   const pantalla = dev.querySelector('.screen');
   if (pantalla){
     if (!conAnimacion){ pantalla.style.animation = 'none'; pantalla.scrollTop = scrollPrevio; }
-    else if (S.atras) pantalla.classList.add('back');
+    else {
+      pantalla.classList.add('entra');               // los bloques aparecen en cascada
+      if (S.atras) pantalla.classList.add('back');
+    }
+  }
+
+  // El indicador de la pestaña se desliza desde la que estaba antes
+  const nav = dev.querySelector('.nav');
+  if (nav){
+    const nueva = nav.style.getPropertyValue('--i');
+    if (pestanaPrevia !== null && pestanaPrevia !== nueva){
+      nav.style.setProperty('--i', pestanaPrevia);
+      requestAnimationFrame(() => requestAnimationFrame(() => nav.style.setProperty('--i', nueva)));
+    }
+    pestanaPrevia = nueva;
   }
 
   const hoja = dev.querySelector('.sheet');
@@ -276,9 +300,16 @@ function seguirTeclado(){
   const vv = window.visualViewport;
   if (!vv) return;
   const actualizar = () => {
+    // Solo cuenta como teclado si hay un campo de texto con el foco y lo tapado es grande:
+    // las barras de Safari también achican la vista y no son teclado.
+    const a = document.activeElement;
+    const escribiendo = a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName);
     const tapado = Math.max(0, innerHeight - vv.height - vv.offsetTop);
-    document.documentElement.style.setProperty('--teclado', Math.round(tapado) + 'px');
+    const teclado = escribiendo && tapado > 120 ? Math.round(tapado) : 0;
+    document.documentElement.style.setProperty('--teclado', teclado + 'px');
   };
+  addEventListener('focusin', () => setTimeout(actualizar, 50));
+  addEventListener('focusout', () => setTimeout(actualizar, 50));
   vv.addEventListener('resize', actualizar);
   vv.addEventListener('scroll', actualizar);
   actualizar();
