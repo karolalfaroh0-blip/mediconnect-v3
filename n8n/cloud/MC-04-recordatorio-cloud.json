@@ -1,0 +1,432 @@
+{
+  "name": "MC-04 · Recordatorio (n8n Cloud)",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## MC-04 · Recordatorio (n8n Cloud)\n\nVersión para n8n Cloud: sin disparador de cada minuto (gastaría el cupo de ejecuciones).\nFila 1: guarda el recordatorio, responde y TERMINA (así n8n guarda la memoria).\nFila 2: duerme hasta la hora y pregunta si sigue vigente. Fila 3: responde esa pregunta\ncon la memoria fresca. IMPORTANTE: este flujo tiene que quedar ACTIVO (publicado).",
+        "height": 260,
+        "width": 520,
+        "color": 4
+      },
+      "id": "mc-nota-59",
+      "name": "Nota",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -240,
+        -420
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "mediconnect/recordatorio",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*",
+          "rawBody": false
+        }
+      },
+      "id": "mc-recibe-el-recordatorio-41",
+      "name": "Recibe el recordatorio",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -220,
+        160
+      ],
+      "webhookId": "mc-wh-mediconnect-recordatorio-40"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "\n/* ---------- MC-04a (cloud) · guardar o quitar un recordatorio ---------- */\nconst entrada = $input.first().json || {};\nconst e = entrada.body && typeof entrada.body === 'object' ? entrada.body : entrada;\nconst cabeceras = entrada.headers || {};\nconst guardado = $getWorkflowStaticData('global');\nguardado.pendientes = guardado.pendientes || {};\n\nconst c = e.cita || {};\nif (!c.codigo){\n  return [{ json: { esperar: false, respuesta: { ok: false, error: 'Falta el código de la cita' } } }];\n}\n\nif (e.accion === 'cancelar' || c.estado === 'cancelada'){\n  const habia = !!guardado.pendientes[c.codigo];\n  delete guardado.pendientes[c.codigo];\n  return [{ json: { esperar: false, respuesta: { ok: true, mensaje: habia ? 'Recordatorio descartado' : 'No había recordatorio pendiente' } } }];\n}\n\nconst minutos = Number(e.enMinutos);\nif (!Number.isFinite(minutos) || minutos < 0 || minutos > 60 * 24 * 60){\n  return [{ json: { esperar: false, respuesta: { ok: false, error: 'enMinutos fuera de rango' } } }];\n}\n\nconst correo = (e.paciente && e.paciente.correo) || null;\nif (typeof correo !== 'string' || !/^[^@\\s]+@[^@\\s]+\\.[^@\\s]{2,}$/.test(correo)){\n  return [{ json: { esperar: false, respuesta: { ok: false, error: 'El correo del paciente no es válido' } } }];\n}\n\n// Limpieza de lo viejo\nfor (const [k, p] of Object.entries(guardado.pendientes)){\n  if (p.cuando < Date.now() - 2 * 86400000) delete guardado.pendientes[k];\n}\n\nconst cuando = Date.now() + minutos * 60000;\n// La ficha: si se reprograma, cambia, y la ejecución vieja que está dormida ya no vale\nconst ficha = Date.now().toString(36) + Math.random().toString(36).slice(2, 10);\n\nguardado.pendientes[c.codigo] = {\n  cuando, ficha, enviado: false,\n  para: correo,\n  nombre: (e.paciente && e.paciente.nombre) || '',\n  cita: c,\n  zona: e.zona || null,\n  app: e.app || null\n};\n\nconst host = cabeceras['x-forwarded-host'] || cabeceras.host || '';\nreturn [{ json: {\n  esperar: true,\n  codigo: c.codigo,\n  ficha,\n  cuandoIso: new Date(cuando).toISOString(),\n  consulta: host ? 'https://' + host + '/webhook/mediconnect/recordatorio-vigente' : '',\n  espera: host ? 'https://' + host + '/webhook/mediconnect/recordatorio-esperar' : '',\n  respuesta: { ok: true, mensaje: 'Recordatorio programado', codigo: c.codigo, enMinutos: minutos }\n} }];\n"
+      },
+      "id": "mc-programar-o-descartar-42",
+      "name": "Programar o descartar",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        20,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json.respuesta || $json) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      },
+      "id": "mc-responder-a-la-app-43",
+      "name": "Responder a la app",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        260,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.esperar === true }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "mc--hay-que-esperar--44",
+      "name": "¿Hay que esperar?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        500,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.espera }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ codigo: $json.codigo, ficha: $json.ficha, cuandoIso: $json.cuandoIso, consulta: $json.consulta }) }}",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "id": "mc-encargar-la-espera-45",
+      "name": "Encargar la espera",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        740,
+        140
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {},
+      "id": "mc-listo-46",
+      "name": "Listo",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        740,
+        340
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "mediconnect/recordatorio-esperar",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "mc-recibe-la-espera-48",
+      "name": "Recibe la espera",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -220,
+        520
+      ],
+      "webhookId": "mc-wh-mediconnect-recordatorio-esperar-47"
+    },
+    {
+      "parameters": {
+        "resume": "specificTime",
+        "dateTime": "={{ $json.body.cuandoIso }}"
+      },
+      "id": "mc-dormir-hasta-la-hora-50",
+      "name": "Dormir hasta la hora",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        20,
+        520
+      ],
+      "webhookId": "mc-wait-recordatorio-49"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.body.consulta }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ codigo: $json.body.codigo, ficha: $json.body.ficha }) }}",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "id": "mc--sigue-vigente--51",
+      "name": "¿Sigue vigente?",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        260,
+        520
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.enviar === true }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "mc--se-env-a--52",
+      "name": "¿Se envía?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        500,
+        520
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.para }}",
+        "subject": "={{ $json.asunto }}",
+        "emailType": "html",
+        "message": "={{ $json.html }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "id": "mc-enviar-recordatorio-gmail--53",
+      "name": "Enviar recordatorio (Gmail)",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        740,
+        500
+      ],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "",
+          "name": "Gmail personal MediConnect"
+        }
+      },
+      "onError": "continueRegularOutput",
+      "alwaysOutputData": true,
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 2000
+    },
+    {
+      "parameters": {},
+      "id": "mc-nada-que-enviar-54",
+      "name": "Nada que enviar",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        740,
+        700
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "mediconnect/recordatorio-vigente",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*",
+          "rawBody": false
+        }
+      },
+      "id": "mc-consulta-de-vigencia-56",
+      "name": "Consulta de vigencia",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -220,
+        880
+      ],
+      "webhookId": "mc-wh-mediconnect-recordatorio-vigente-55"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "\n/* ---------- utilidades compartidas ---------- */\nconst escapar = (t) => String(t == null ? '' : t)\n  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\"/g, '&quot;');\n\nconst esCorreo = (c) => typeof c === 'string' && /^[^@\\s]+@[^@\\s]+\\.[^@\\s]{2,}$/.test(c);\n\n/** Evita mandar dos veces el mismo aviso (doble clic, reintento de red). */\nfunction yaProcesado(idEvento, horas = 24){\n  if (!idEvento) return false;\n  const guardado = $getWorkflowStaticData('global');\n  guardado.vistos = guardado.vistos || {};\n  const limite = Date.now() - horas * 3600000;\n  for (const k of Object.keys(guardado.vistos)) if (guardado.vistos[k] < limite) delete guardado.vistos[k];\n  if (guardado.vistos[idEvento]) return true;\n  guardado.vistos[idEvento] = Date.now();\n  return false;\n}\n\n/** Plantilla del correo: misma identidad visual que la app. */\nfunction correoHtml({ titulo, saludo, intro, filas, aviso, boton, pie }){\n  const fila = (etiqueta, valor) =>\n    '<tr><td style=\"padding:6px 0;color:#5B6069;font-size:14px;width:120px;vertical-align:top\">' + escapar(etiqueta) + '</td>' +\n    '<td style=\"padding:6px 0;color:#111214;font-size:15px;font-weight:500\">' + escapar(valor) + '</td></tr>';\n\n  return '<!doctype html><html lang=\"es\"><head><meta charset=\"utf-8\">' +\n    '<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"></head>' +\n    '<body style=\"margin:0;padding:0;background:#EEF0F4;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif\">' +\n    '<table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" style=\"background:#EEF0F4;padding:24px 12px\">' +\n    '<tr><td align=\"center\">' +\n    '<table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" style=\"max-width:520px;background:#FFFFFF;border-radius:24px;overflow:hidden\">' +\n\n    '<tr><td style=\"background:#3B5BF6;padding:24px 28px\">' +\n    '<div style=\"color:#FFFFFF;font-size:13px;font-weight:600;letter-spacing:.3px;opacity:.85\">MEDICONNECT</div>' +\n    '<div style=\"color:#FFFFFF;font-size:24px;line-height:30px;font-weight:400;padding-top:6px\">' + escapar(titulo) + '</div>' +\n    '</td></tr>' +\n\n    '<tr><td style=\"padding:24px 28px 8px;color:#111214;font-size:16px;font-weight:500\">' + escapar(saludo) + '</td></tr>' +\n    '<tr><td style=\"padding:0 28px 16px;color:#5B6069;font-size:15px;line-height:22px\">' + escapar(intro) + '</td></tr>' +\n\n    (filas && filas.length\n      ? '<tr><td style=\"padding:0 28px 8px\"><table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" ' +\n        'style=\"background:#F2F3F5;border-radius:18px;padding:16px 18px\">' +\n        filas.map(f => fila(f[0], f[1])).join('') + '</table></td></tr>'\n      : '') +\n\n    (boton\n      ? '<tr><td style=\"padding:18px 28px 8px\"><a href=\"' + escapar(boton.url) + '\" ' +\n        'style=\"display:inline-block;background:#3B5BF6;color:#FFFFFF;text-decoration:none;' +\n        'padding:14px 22px;border-radius:14px;font-size:15px;font-weight:500\">' + escapar(boton.texto) + '</a></td></tr>'\n      : '') +\n\n    (aviso\n      ? '<tr><td style=\"padding:12px 28px 0\"><div style=\"background:#FCF0DA;border-radius:14px;padding:14px 16px;' +\n        'color:#7A4A00;font-size:13px;line-height:19px\">' + escapar(aviso) + '</div></td></tr>'\n      : '') +\n\n    '<tr><td style=\"padding:20px 28px 28px;color:#7A7F88;font-size:12px;line-height:18px;border-top:1px solid #EDEFF2\">' +\n    escapar(pie || '') + '</td></tr>' +\n\n    '</table>' +\n    '<div style=\"max-width:520px;color:#8A8F98;font-size:11px;line-height:17px;padding:14px 8px;text-align:center\">' +\n    'MediConnect es un prototipo académico de estudiantes. La clínica, los médicos y los pagos son ficticios.' +\n    '</div>' +\n    '</td></tr></table></body></html>';\n}\n\n/* ---------- MC-04b (cloud) · ¿sigue vigente? ---------- */\nconst entrada = $input.first().json || {};\nconst e = entrada.body && typeof entrada.body === 'object' ? entrada.body : entrada;\nconst guardado = $getWorkflowStaticData('global');\nguardado.pendientes = guardado.pendientes || {};\n\nconst no = (motivo) => [{ json: { respuesta: { enviar: false, motivo } } }];\n\nconst p = guardado.pendientes[e.codigo];\nif (!p) return no('ya no hay recordatorio para esa cita');\nif (p.ficha !== e.ficha) return no('la cita se reprogramó: este recordatorio ya no vale');\nif (p.enviado) return no('ya se envió');\nif (p.cita && p.cita.estado === 'cancelada') { delete guardado.pendientes[e.codigo]; return no('cita cancelada'); }\nif (!esCorreo(p.para)) { delete guardado.pendientes[e.codigo]; return no('correo inválido'); }\nif (p.cuando > Date.now() + 5000) return no('todavía no es la hora');\n\n// Se marca ANTES de enviar: nunca se repite\np.enviado = true;\np.enviadoEn = new Date().toISOString();\n\nconst codigo = e.codigo;\nconst c = p.cita || {};\nconst nombre = (p.nombre || 'Hola').split(' ')[0];\nconst enlaces = c.enlaces || {};\n\nreturn [{ json: { respuesta: {\n  enviar: true,\n  evento: 'recordatorio',\n  idEvento: 'rec-' + codigo,\n  codigo,\n  para: p.para,\n  asunto: 'Recordatorio: tu cita es ' + (c.fechaTexto || c.fecha) + ' a las ' + (c.horaTexto || c.hora),\n  html: correoHtml({\n    titulo: 'Tu cita es pronto',\n    saludo: 'Hola, ' + nombre,\n    intro: 'Te recordamos tu cita con ' + ((c.medico && c.medico.nombre) || 'tu médico') +\n           '. Llegá 10 minutos antes y hacé el check-in con el QR de tu comprobante.',\n    filas: [\n      ['Fecha', c.fechaTexto || c.fecha],\n      ['Hora', (c.horaTexto || c.hora) + ' (' + ((p.zona && p.zona.id) || 'America/El_Salvador') + ')'],\n      ['Médico', (c.medico && c.medico.nombre) || ''],\n      ['Lugar', ((c.lugar && c.lugar.clinica) || '') + ((c.medico && c.medico.consultorio) ? ' · ' + c.medico.consultorio : '')],\n      ['Código', codigo]\n    ].filter(f => f[1]),\n    boton: enlaces.comprobante ? { texto: 'Abrir mi comprobante', url: enlaces.comprobante } : null,\n    aviso: '¿No vas a poder llegar? Cancelá desde la app para liberar el horario.',\n    pie: 'Recordatorio automático de MediConnect.'\n  })\n} } }];\n"
+      },
+      "id": "mc-revisar-y-marcar-57",
+      "name": "Revisar y marcar",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        20,
+        880
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json.respuesta) }}",
+        "options": {}
+      },
+      "id": "mc-responder-la-consulta-58",
+      "name": "Responder la consulta",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        260,
+        880
+      ]
+    }
+  ],
+  "connections": {
+    "Recibe el recordatorio": {
+      "main": [
+        [
+          {
+            "node": "Programar o descartar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Programar o descartar": {
+      "main": [
+        [
+          {
+            "node": "Responder a la app",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Responder a la app": {
+      "main": [
+        [
+          {
+            "node": "¿Hay que esperar?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Hay que esperar?": {
+      "main": [
+        [
+          {
+            "node": "Encargar la espera",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Listo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Recibe la espera": {
+      "main": [
+        [
+          {
+            "node": "Dormir hasta la hora",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Dormir hasta la hora": {
+      "main": [
+        [
+          {
+            "node": "¿Sigue vigente?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Sigue vigente?": {
+      "main": [
+        [
+          {
+            "node": "¿Se envía?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Se envía?": {
+      "main": [
+        [
+          {
+            "node": "Enviar recordatorio (Gmail)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Nada que enviar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Consulta de vigencia": {
+      "main": [
+        [
+          {
+            "node": "Revisar y marcar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Revisar y marcar": {
+      "main": [
+        [
+          {
+            "node": "Responder la consulta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "timezone": "America/El_Salvador"
+  },
+  "pinData": {},
+  "tags": [],
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "versionId": ""
+}
