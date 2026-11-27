@@ -11,19 +11,6 @@ correo, llegar con un código QR, pasar por la consulta y agendar el control.
 
 ---
 
-## Probarlo en 30 segundos
-
-```bash
-node herramientas/servidor.js
-```
-
-Después abrí <http://localhost:5500>.
-
-**Publicada:** <https://karolalfaroh0-blip.github.io/mediconnect-v3/>
-
-> Hace falta un servidor (aunque sea este, de 60 líneas) porque la app usa
-> módulos de JavaScript, y los navegadores no los permiten al abrir el archivo
-> con doble clic.
 
 | Dirección | Para qué sirve |
 |---|---|
@@ -106,11 +93,7 @@ códigos QR escaneables, archivos `.ics` válidos y correos reales por Gmail con
 el diagnóstico, la receta, los resultados de laboratorio y la fila de la sala
 de espera.
 
-**Lo que no hay:** servidor. Las citas viven en el navegador de cada persona, así
-que dos teléfonos no comparten agenda. Está explicado en
-[08 · Real, simulado y pendiente](docs/08-alcance.md) y propuesto como siguiente paso.
 
----
 
 ## Seguridad y privacidad
 
